@@ -23,8 +23,8 @@ export default function MerchantRegister() {
     try {
       const hashed = await sha256(pass, 'hayy_salt_2026');
       // Sign in anonymously to get a Firebase UID for Firestore security rules
-      await signInAnonymously(auth).catch(() => {});
-      const uid = auth.currentUser?.uid || null;
+      const { user } = await signInAnonymously(auth);
+      const uid = user.uid;
       // Use a transaction to safely assign founder numbers without race conditions
       const counterRef = doc(db, 'meta', 'merchant_counter');
       let ref, isF, fNum;

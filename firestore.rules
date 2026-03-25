@@ -55,5 +55,10 @@ service cloud.firestore {
     match /fcm_tokens/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+
+    // Meta — counters and config; authenticated users can read/write
+    match /meta/{docId} {
+      allow read, write: if request.auth != null;
+    }
   }
 }
