@@ -1,6 +1,6 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
-const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -10,14 +10,13 @@ const messaging = admin.messaging();
 // مساعد - إنشاء client واحد مشترك (lazy)
 // ─────────────────────────────────────────────────────────────────
 function getAI() {
-  // يدعم كلاً من: process.env (Secrets Manager) و functions.config() (الطريقة الكلاسيكية)
-  const key = process.env.ANTHROPIC_API_KEY || functions.config().anthropic?.key;
-  if (!key) throw new functions.https.HttpsError('failed-precondition', 'ANTHROPIC_API_KEY غير مضبوط');
-  return new Anthropic.default({ apiKey: key });
+  const key = process.env.GEMINI_API_KEY || functions.config().gemini?.key;
+  if (!key) throw new functions.https.HttpsError('failed-precondition', 'GEMINI_API_KEY غير مضبوط');
+  return new GoogleGenerativeAI(key);
 }
 
 // ─────────────────────────────────────────────────────────────────
-// 1. إشعار التاجر عند استخدام الكوبون (موجود مسبقاً)
+// 1. إشعار التاجر عند استخدام الكوبون
 // ─────────────────────────────────────────────────────────────────
 exports.notifyMerchantOnCouponUsed = functions.firestore
   .document('coupons/{couponId}')
@@ -65,19 +64,18 @@ exports.notifyMerchantOnCouponUsed = functions.firestore
 
 // ─────────────────────────────────────────────────────────────────
 // 2. مساعد حيّ للعملاء
-//    يساعد في إيجاد أفضل المحلات بناءً على احتياج المستخدم
 // ─────────────────────────────────────────────────────────────────
 exports.askAssistant = functions.https.onCall(async (data) => {
   const { message, stores = [], history = [] } = data;
   if (!message) throw new functions.https.HttpsError('invalid-argument', 'message مطلوب');
 
-  const ai = getAI();
+  const genAI = getAI();
 
   const storeList = stores
     .map(s => `• ${s.name} (${s.type}) — خصم ${s.discount || 0}%${s.area ? ` — ${s.area}` : ''}`)
     .join('\n');
 
-  const system = `أنت مساعد ذكي لتطبيق "حيّ" في شرورة، منصة خصومات حصرية لأهل الحي.
+  const systemInstruction = `أنت مساعد ذكي لتطبيق "حيّ" في شرورة، منصة خصومات حصرية لأهل الحي.
 
 المحلات المتاحة الآن:
 ${storeList || 'لا توجد بيانات'}
@@ -89,20 +87,21 @@ ${storeList || 'لا توجد بيانات'}
 - إذا سأل عن محل غير موجود، اعتذر بلطف واقترح بديلاً
 - ردودك بين جملة وثلاث جمل كحد أقصى`;
 
-  // بناء تاريخ المحادثة
-  const messages = [
-    ...history.slice(-6).map(m => ({ role: m.role, content: m.content })),
-    { role: 'user', content: message },
-  ];
-
-  const response = await ai.messages.create({
-    model: 'claude-haiku-4-5',
-    max_tokens: 400,
-    system,
-    messages,
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash',
+    systemInstruction,
   });
 
-  return { reply: response.content[0].text };
+  // بناء تاريخ المحادثة (بدون الرسالة الأخيرة)
+  const chatHistory = history.slice(-6, -1).map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }));
+
+  const chat = model.startChat({ history: chatHistory });
+  const result = await chat.sendMessage(message);
+
+  return { reply: result.response.text() };
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -112,24 +111,20 @@ exports.generateStoreDescription = functions.https.onCall(async (data) => {
   const { storeName, storeType, discount } = data;
   if (!storeName) throw new functions.https.HttpsError('invalid-argument', 'storeName مطلوب');
 
-  const ai = getAI();
+  const genAI = getAI();
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-  const response = await ai.messages.create({
-    model: 'claude-haiku-4-5',
-    max_tokens: 200,
-    messages: [{
-      role: 'user',
-      content: `اكتب وصفاً تسويقياً جذاباً ومختصراً (جملة واحدة أو جملتين) لنشاط تجاري في شرورة:
+  const result = await model.generateContent(
+    `اكتب وصفاً تسويقياً جذاباً ومختصراً (جملة واحدة أو جملتين) لنشاط تجاري في شرورة:
 الاسم: ${storeName}
 النوع: ${storeType || 'نشاط تجاري'}
 الخصم: ${discount || 10}%
 
 الوصف يجب أن: يكون بالعربية، يذكر الخصم، يناسب أهل شرورة، وجذاب للعملاء.
-أعطِ فقط النص، بدون مقدمات.`,
-    }],
-  });
+أعطِ فقط النص، بدون مقدمات.`
+  );
 
-  return { description: response.content[0].text.trim() };
+  return { description: result.response.text().trim() };
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -139,7 +134,7 @@ exports.weeklyProjectReport = functions.pubsub
   .schedule('every monday 08:00')
   .timeZone('Asia/Riyadh')
   .onRun(async () => {
-    const ai = getAI();
+    const genAI = getAI();
     const week = new Date(Date.now() - 7 * 86400000);
 
     // جمع البيانات من Firestore
@@ -156,11 +151,11 @@ exports.weeklyProjectReport = functions.pubsub
     const ratings    = ratingsSnap.docs.map(d => d.data());
 
     // حساب الإحصائيات
-    const weekCoupons  = coupons.filter(c => c.created_at?.toDate?.() >= week);
-    const usedCoupons  = weekCoupons.filter(c => c.status === 'used');
+    const weekCoupons    = coupons.filter(c => c.created_at?.toDate?.() >= week);
+    const usedCoupons    = weekCoupons.filter(c => c.status === 'used');
     const expiredCoupons = weekCoupons.filter(c => c.status === 'expired');
     const openComplaints = complaints.filter(c => c.status === 'open');
-    const newMerchants = merchants.filter(m => m.created_at?.toDate?.() >= week);
+    const newMerchants   = merchants.filter(m => m.created_at?.toDate?.() >= week);
 
     const storeRatings = {};
     ratings.forEach(r => {
@@ -180,22 +175,17 @@ exports.weeklyProjectReport = functions.pubsub
     ).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([n, c]) => `${n}: ${c}`);
 
     const stats = {
-      merchants: { total: merchants.length, active: merchants.filter(m => m.active !== false).length, new_this_week: newMerchants.length },
-      coupons:   { generated: weekCoupons.length, used: usedCoupons.length, expired: expiredCoupons.length, usage_rate: weekCoupons.length ? Math.round(usedCoupons.length / weekCoupons.length * 100) + '%' : '0%' },
+      merchants:  { total: merchants.length, active: merchants.filter(m => m.active !== false).length, new_this_week: newMerchants.length },
+      coupons:    { generated: weekCoupons.length, used: usedCoupons.length, expired: expiredCoupons.length, usage_rate: weekCoupons.length ? Math.round(usedCoupons.length / weekCoupons.length * 100) + '%' : '0%' },
       complaints: { open: openComplaints.length, resolved_this_week: complaints.filter(c => c.resolved_at?.toDate?.() >= week).length },
-      ratings:   { total: ratings.length, avg_platform: ratings.length ? (ratings.reduce((s, r) => s + (r.stars || 0), 0) / ratings.length).toFixed(1) : '—' },
+      ratings:    { total: ratings.length, avg_platform: ratings.length ? (ratings.reduce((s, r) => s + (r.stars || 0), 0) / ratings.length).toFixed(1) : '—' },
       top_stores: topStores,
       low_rated_stores: lowRatedStores,
     };
 
-    // تحليل Claude
-    const response = await ai.messages.create({
-      model: 'claude-opus-4-6',
-      max_tokens: 1200,
-      thinking: { type: 'adaptive' },
-      messages: [{
-        role: 'user',
-        content: `أنت مدير مشروع محترف لتطبيق "حيّ"، منصة خصومات لسكان شرورة.
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+    const result = await model.generateContent(
+      `أنت مدير مشروع محترف لتطبيق "حيّ"، منصة خصومات لسكان شرورة.
 حلّل هذه الإحصائيات الأسبوعية وأعطِ تقريراً احترافياً موجزاً بالعربية:
 
 ${JSON.stringify(stats, null, 2)}
@@ -206,11 +196,10 @@ ${JSON.stringify(stats, null, 2)}
 **3. نقاط تحتاج اهتماماً** — مشاكل أو مخاوف واضحة
 **4. توصيات الأسبوع القادم** — 3 إجراءات محددة وقابلة للتنفيذ
 
-الأسلوب: احترافي، مباشر، قابل للتنفيذ.`,
-      }],
-    });
+الأسلوب: احترافي، مباشر، قابل للتنفيذ.`
+    );
 
-    const analysis = response.content.find(b => b.type === 'text')?.text || '';
+    const analysis = result.response.text();
 
     // حفظ التقرير
     await db.collection('reports').add({
