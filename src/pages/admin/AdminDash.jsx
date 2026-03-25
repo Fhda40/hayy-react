@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, getDocs, setDoc, doc, serverTimestamp, query, where } from 'firebase/firestore';
+import { collection, getDocs, setDoc, doc, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { toast } from '../../components/Toast';
 
@@ -25,6 +25,8 @@ export default function AdminDash() {
   const [couponFilter, setCouponFilter] = useState('all');
   const [compFilter, setCompFilter] = useState('open');
   const [refreshing, setRefreshing] = useState(false);
+  const [addForm, setAddForm] = useState({ name:'', type:'', discount:10, icon:'🏪', description:'', area:'', phone:'' });
+  const [addSaving, setAddSaving] = useState(false);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -129,7 +131,7 @@ export default function AdminDash() {
 
       {/* Tab Bar */}
       <div style={{ display:'flex', background:'#fff', borderBottom:'1px solid var(--sep)', flexShrink:0, overflowX:'auto', scrollbarWidth:'none' }}>
-        {[['overview','📊 عام'],['merchants','🏪 التجار'],['coupons','🎟️ الكوبونات'],['complaints','⚠️ الشكاوى']].map(([id,label]) => (
+        {[['overview','📊 عام'],['merchants','🏪 التجار'],['coupons','🎟️ الكوبونات'],['complaints','⚠️ الشكاوى'],['add','➕ إضافة']].map(([id,label]) => (
           <button key={id} onClick={() => setTab(id)}
             style={{ flex:1, minWidth:72, padding:'13px 8px', fontSize:13, fontWeight:600, fontFamily:"'Tajawal',sans-serif", background:'none', border:'none', borderBottom:`2px solid ${tab===id ? '#0A2540' : 'transparent'}`, color: tab===id ? '#0A2540' : 'var(--text3)', cursor:'pointer', whiteSpace:'nowrap' }}>
             {label}
@@ -268,6 +270,84 @@ export default function AdminDash() {
                       : <span style={{ fontSize:12, color:'var(--green)', fontWeight:600 }}>✅ محلولة</span>}
                   </div>
                 ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── ADD STORE ── */}
+        {tab === 'add' && (
+          <div style={{ padding:'14px 14px 40px' }}>
+            <div style={{ background:'#fff', borderRadius:16, padding:20, boxShadow:'0 1px 4px rgba(0,0,0,.06)' }}>
+              <div style={{ fontSize:15, fontWeight:700, marginBottom:16 }}>➕ إضافة نشاط جديد</div>
+
+              {[
+                ['اسم النشاط *', 'name', 'text', 'مثال: كافيه الورد'],
+                ['نوع النشاط', 'type', 'text', 'مثال: مقاهي ومشروبات'],
+                ['رقم الجوال', 'phone', 'tel', '05xxxxxxxx'],
+                ['الحي / المنطقة', 'area', 'text', 'مثال: حي النزهة'],
+                ['وصف العرض', 'description', 'text', 'مثال: خصم على جميع المشروبات'],
+              ].map(([label, key, type, placeholder]) => (
+                <div key={key} style={{ marginBottom:12 }}>
+                  <label style={{ fontSize:13, fontWeight:600, color:'var(--text3)', marginBottom:6, display:'block' }}>{label}</label>
+                  <input
+                    type={type}
+                    value={addForm[key]}
+                    onChange={e => setAddForm(f => ({ ...f, [key]: e.target.value }))}
+                    placeholder={placeholder}
+                    className="field"
+                    style={{ margin:0 }}
+                  />
+                </div>
+              ))}
+
+              <div style={{ marginBottom:16 }}>
+                <label style={{ fontSize:13, fontWeight:600, color:'var(--text3)', marginBottom:6, display:'block' }}>نسبة الخصم: <strong>{addForm.discount}%</strong></label>
+                <input type="range" min={5} max={50} step={5} value={addForm.discount}
+                  onChange={e => setAddForm(f => ({ ...f, discount: Number(e.target.value) }))}
+                  style={{ width:'100%', accentColor:'#0A2540' }} />
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'var(--text4)', marginTop:4 }}>
+                  <span>5%</span><span>25%</span><span>50%</span>
+                </div>
+              </div>
+
+              <div style={{ marginBottom:16 }}>
+                <label style={{ fontSize:13, fontWeight:600, color:'var(--text3)', marginBottom:8, display:'block' }}>أيقونة</label>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:6 }}>
+                  {['🏪','☕','🍽️','💊','🛒','✂️','👗','📱','🌿','🍰','💈','🎯'].map(e => (
+                    <div key={e} onClick={() => setAddForm(f => ({ ...f, icon: e }))}
+                      style={{ fontSize:22, padding:8, borderRadius:10, background:'var(--bg2)', border:`2px solid ${addForm.icon===e ? '#0A2540' : 'transparent'}`, cursor:'pointer', textAlign:'center' }}>
+                      {e}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                disabled={addSaving || !addForm.name}
+                onClick={async () => {
+                  setAddSaving(true);
+                  try {
+                    await addDoc(collection(db, 'businesses'), {
+                      name: addForm.name,
+                      type: addForm.type,
+                      discount: addForm.discount,
+                      icon: addForm.icon,
+                      description: addForm.description,
+                      area: addForm.area,
+                      phone: addForm.phone,
+                      active: true,
+                      created_at: serverTimestamp(),
+                    });
+                    toast('✅ تم إضافة النشاط');
+                    setAddForm({ name:'', type:'', discount:10, icon:'🏪', description:'', area:'', phone:'' });
+                    await loadMerchants();
+                  } catch { toast('❌ حدث خطأ'); }
+                  setAddSaving(false);
+                }}
+                style={{ display:'block', width:'100%', padding:16, background: addSaving || !addForm.name ? '#ccc' : 'linear-gradient(135deg,#0A2540,#2D7DD2)', color:'#fff', border:'none', borderRadius:14, fontSize:16, fontWeight:700, fontFamily:"'Tajawal',sans-serif", cursor: addSaving || !addForm.name ? 'not-allowed' : 'pointer' }}
+              >
+                {addSaving ? '⏳ جاري الإضافة...' : '➕ إضافة النشاط'}
+              </button>
             </div>
           </div>
         )}

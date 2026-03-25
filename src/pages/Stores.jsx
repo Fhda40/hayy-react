@@ -166,8 +166,20 @@ export default function Stores() {
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
         {loading ? (
           <StoreSkeleton />
-        ) : (
-          sorted().filter(s => !search || s.name?.includes(search) || s.type?.includes(search)).map(s => {
+        ) : (() => {
+          const list = sorted().filter(s => !search || s.name?.includes(search) || s.type?.includes(search));
+          if (list.length === 0) return (
+            <div style={{ textAlign:'center', padding:'60px 20px' }}>
+              <div style={{ fontSize:52, marginBottom:16 }}>🏪</div>
+              <div style={{ fontSize:18, fontWeight:700, marginBottom:8 }}>
+                {search ? 'لا توجد نتائج' : 'لا توجد أنشطة بعد'}
+              </div>
+              <div style={{ fontSize:14, color:'var(--text3)' }}>
+                {search ? `لم نجد نشاطاً يطابق "${search}"` : 'سيتم إضافة أنشطة قريباً'}
+              </div>
+            </div>
+          );
+          return list.map(s => {
             const avg = ratings[s.id];
             const dist = userPos && s.lat && s.lng
               ? haversine(userPos.lat, userPos.lng, s.lat, s.lng).toFixed(1) + ' كم'
@@ -208,8 +220,8 @@ export default function Stores() {
                 <div style={{ color: 'var(--text4)', fontSize: 18, marginRight: 'auto', flexShrink: 0 }}>›</div>
               </button>
             );
-          })
-        )}
+          });
+        })()}
         <div style={{ padding: '10px 20px calc(env(safe-area-inset-bottom,0px) + 10px)', textAlign: 'center' }}>
           <div style={{ fontSize: 12, color: 'var(--text4)' }}>صُنع بـ ❤️ في شرورة — من أهلها لأهلها</div>
         </div>
