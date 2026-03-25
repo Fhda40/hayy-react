@@ -195,7 +195,7 @@ export default function Stores() {
             return (
               <button
                 key={s.id}
-                onClick={() => navigate('/coupon', { state: { store: s } })}
+                onClick={() => navigate('/store', { state: { store: s } })}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 14,
                   padding: '14px 20px', borderBottom: '1px solid var(--sep)',
