@@ -50,8 +50,8 @@ export default function Register() {
       });
       login({ phone, uid: user.uid, name });
       navigate('/stores');
-    } catch {
-      setError('حدث خطأ — حاول مجدداً');
+    } catch (e) {
+      setError(e?.message || 'حدث خطأ — حاول مجدداً');
     }
     setLoading(false);
   }
