@@ -142,7 +142,7 @@ export default function MerchantDash() {
       const biz = { name, type:type.replace(/^.\s/,''), discount, icon:emoji, description:desc, area, phone, logo_url:logoUrl, photos:photos.filter(u=>u), active:true, lat, lng, updated_at:serverTimestamp() };
       if (!bq.empty) await setDoc(doc(db,'businesses',bq.docs[0].id), biz, { merge:true });
       else await addDoc(collection(db,'businesses'), { ...biz, created_at:serverTimestamp() });
-    } catch { alert('خطأ — حاول مجدداً'); }
+    } catch (e) { alert('خطأ: ' + (e?.code || e?.message || e)); }
     setSaving(false);
   }
 
