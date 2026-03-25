@@ -263,11 +263,19 @@ export default function MerchantDash() {
             <label style={{ fontSize:13, fontWeight:600, color:'var(--text3)', marginBottom:8, display:'block' }}>صور النشاط (حتى 3)</label>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:8 }}>
               {[0,1,2].map(i => (
-                <div key={i} onClick={() => document.getElementById('ph-inp-'+i).click()}
-                  style={{ aspectRatio:'1', border:'2px dashed var(--sep)', borderRadius:14, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', overflow:'hidden', background:'var(--bg2)' }}>
-                  {photos[i]
-                    ? <img src={photos[i]} style={{ width:'100%', height:'100%', objectFit:'cover' }} alt="" />
-                    : <><span style={{ fontSize:26 }}>📷</span><span style={{ fontSize:11, color:'var(--text4)' }}>صورة {i+1}</span></>}
+                <div key={i} style={{ position:'relative', aspectRatio:'1' }}>
+                  <div onClick={() => document.getElementById('ph-inp-'+i).click()}
+                    style={{ width:'100%', height:'100%', border:'2px dashed var(--sep)', borderRadius:14, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', overflow:'hidden', background:'var(--bg2)' }}>
+                    {photos[i]
+                      ? <img src={photos[i]} style={{ width:'100%', height:'100%', objectFit:'cover' }} alt="" />
+                      : <><span style={{ fontSize:26 }}>📷</span><span style={{ fontSize:11, color:'var(--text4)' }}>صورة {i+1}</span></>}
+                  </div>
+                  {photos[i] && (
+                    <button onClick={e => { e.stopPropagation(); setPhotos(p => { const x=[...p]; x[i]=''; return x; }); }}
+                      style={{ position:'absolute', top:4, left:4, width:22, height:22, borderRadius:'50%', background:'rgba(0,0,0,0.6)', color:'#fff', border:'none', fontSize:13, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', lineHeight:1 }}>
+                      ×
+                    </button>
+                  )}
                   <input type="file" id={'ph-inp-'+i} accept="image/*" style={{ display:'none' }} onChange={async e => {
                     const f = e.target.files[0]; if (!f) return;
                     setPhotosStatus('⏳ جاري الرفع...');
