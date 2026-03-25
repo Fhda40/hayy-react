@@ -180,9 +180,9 @@ export default function Coupon() {
 
       {/* Photos */}
       {store.photos?.length > 0 && (
-        <div style={{ padding:'0 20px 12px', display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8 }}>
-          {store.photos.slice(0,3).map((u,i) => (
-            <img key={i} src={u} style={{ width:'100%', aspectRatio:'1', objectFit:'cover', borderRadius:10 }} alt="" />
+        <div style={{ padding:'0 20px 10px', display:'flex', gap:8, overflowX:'auto', scrollbarWidth:'none' }}>
+          {store.photos.slice(0,5).map((u,i) => (
+            <img key={i} src={u} style={{ width:72, height:72, flexShrink:0, objectFit:'cover', borderRadius:10 }} alt="" />
           ))}
         </div>
       )}
