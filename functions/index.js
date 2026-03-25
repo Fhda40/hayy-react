@@ -93,7 +93,7 @@ ${storeList || 'لا توجد بيانات'}
   ];
 
   const response = await ai.messages.create({
-    model: 'claude-haiku-4-5',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 400,
     system,
     messages,
@@ -111,22 +111,26 @@ exports.generateStoreDescription = functions.https.onCall(async (data) => {
 
   const ai = getAI();
 
-  const response = await ai.messages.create({
-    model: 'claude-haiku-4-5',
-    max_tokens: 200,
-    messages: [{
-      role: 'user',
-      content: `اكتب وصفاً تسويقياً جذاباً ومختصراً (جملة واحدة أو جملتين) لنشاط تجاري في شرورة:
+  try {
+    const response = await ai.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 200,
+      messages: [{
+        role: 'user',
+        content: `اكتب وصفاً تسويقياً جذاباً ومختصراً (جملة واحدة أو جملتين) لنشاط تجاري في شرورة:
 الاسم: ${storeName}
 النوع: ${storeType || 'نشاط تجاري'}
 الخصم: ${discount || 10}%
 
 الوصف يجب أن: يكون بالعربية، يذكر الخصم، يناسب أهل شرورة، وجذاب للعملاء.
 أعطِ فقط النص، بدون مقدمات.`,
-    }],
-  });
-
-  return { description: response.content[0].text.trim() };
+      }],
+    });
+    return { description: response.content[0]?.text?.trim() || '' };
+  } catch (err) {
+    functions.logger.error('generateStoreDescription error:', err);
+    throw new functions.https.HttpsError('internal', 'تعذر توليد الوصف، حاول مجدداً');
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -183,12 +187,14 @@ exports.weeklyProjectReport = functions.pubsub
       low_rated_stores: lowRatedStores,
     };
 
-    const response = await ai.messages.create({
-      model: 'claude-opus-4-6',
-      max_tokens: 1200,
-      messages: [{
-        role: 'user',
-        content: `أنت مدير مشروع محترف لتطبيق "حيّ"، منصة خصومات لسكان شرورة.
+    let analysis = '';
+    try {
+      const response = await ai.messages.create({
+        model: 'claude-opus-4-6',
+        max_tokens: 1200,
+        messages: [{
+          role: 'user',
+          content: `أنت مدير مشروع محترف لتطبيق "حيّ"، منصة خصومات لسكان شرورة.
 حلّل هذه الإحصائيات الأسبوعية وأعطِ تقريراً احترافياً موجزاً بالعربية:
 
 ${JSON.stringify(stats, null, 2)}
@@ -200,10 +206,13 @@ ${JSON.stringify(stats, null, 2)}
 **4. توصيات الأسبوع القادم** — 3 إجراءات محددة وقابلة للتنفيذ
 
 الأسلوب: احترافي، مباشر، قابل للتنفيذ.`,
-      }],
-    });
-
-    const analysis = response.content.find(b => b.type === 'text')?.text || '';
+        }],
+      });
+      analysis = response.content.find(b => b.type === 'text')?.text || '';
+    } catch (err) {
+      functions.logger.error('weeklyProjectReport AI error:', err);
+      analysis = 'تعذر توليد التحليل الذكي.';
+    }
 
     await db.collection('reports').add({
       type: 'weekly',

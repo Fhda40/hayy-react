@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, getDoc, doc, query, where, orderBy, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { signInAnonymously } from 'firebase/auth';
 import { haversine, relativeDate } from '../utils';
@@ -171,9 +171,9 @@ export default function Coupon() {
         // Check if used
         if (couponIdRef.current) {
           try {
-            const snap = await getDocs(query(collection(db,'coupons'), where('__name__','==', couponIdRef.current)));
-            if (!snap.empty && snap.docs[0].data().status === 'used') {
-              if (mountedRef.current) navigate('/rating', { state: { store, couponId } });
+            const snap = await getDoc(doc(db, 'coupons', couponIdRef.current));
+            if (snap.exists() && snap.data().status === 'used') {
+              if (mountedRef.current) navigate('/rating', { state: { store, couponId: couponIdRef.current } });
               return;
             }
           } catch {}

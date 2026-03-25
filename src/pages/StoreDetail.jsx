@@ -16,7 +16,7 @@ export default function StoreDetail() {
   useEffect(() => {
     if (!store) return;
     fetchReviews();
-  }, []);
+  }, [store?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function fetchReviews() {
     try {
