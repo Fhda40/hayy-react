@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, addDoc, getDocs, query, where, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { signInAnonymously } from 'firebase/auth';
 
@@ -52,13 +52,40 @@ export default function Coupon() {
   const [locked, setLocked] = useState([false,false,false,false]);
   const [timerSecs, setTimerSecs] = useState(180);
   const [couponId, setCouponId] = useState(null);
+  const [reviews, setReviews] = useState([]);
   const timerRef = useRef(null);
   const codeRef = useRef(null);
 
   useEffect(() => {
     checkUsedToday();
+    fetchReviews();
     return () => clearInterval(timerRef.current);
   }, []);
+
+  async function fetchReviews() {
+    try {
+      const q = query(
+        collection(db, 'ratings'),
+        where('business_id', '==', store.id),
+        orderBy('created_at', 'desc')
+      );
+      const snap = await getDocs(q);
+      setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch {}
+  }
+
+  function relativeDate(ts) {
+    if (!ts) return '';
+    const date = ts.toDate ? ts.toDate() : new Date(ts);
+    const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (diff < 60) return 'منذ لحظات';
+    if (diff < 3600) return `منذ ${Math.floor(diff/60)} دقيقة`;
+    if (diff < 86400) return `منذ ${Math.floor(diff/3600)} ساعة`;
+    if (diff < 172800) return 'منذ يوم';
+    if (diff < 604800) return `منذ ${Math.floor(diff/86400)} أيام`;
+    if (diff < 2592000) return `منذ ${Math.floor(diff/604800)} أسابيع`;
+    return `منذ ${Math.floor(diff/2592000)} أشهر`;
+  }
 
   async function checkUsedToday() {
     try {
@@ -186,6 +213,51 @@ export default function Coupon() {
           ))}
         </div>
       )}
+
+      {/* Reviews */}
+      {(() => {
+        const avgStars = reviews.length > 0
+          ? reviews.reduce((s, r) => s + (r.stars || 0), 0) / reviews.length
+          : 0;
+        const comments = reviews.filter(r => r.comment && r.comment.trim()).slice(0, 5);
+        return (
+          <div style={{ margin:'0 16px 14px', background:'#fff', borderRadius:16, border:'1px solid var(--sep)', padding:'16px 18px' }}>
+            <div style={{ fontWeight:700, fontSize:15, marginBottom:10 }}>التقييمات</div>
+            {reviews.length === 0 ? (
+              <div style={{ textAlign:'center', color:'var(--text4)', fontSize:13, padding:'6px 0' }}>كن أول من يقيّم</div>
+            ) : (
+              <>
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+                  <div style={{ display:'flex', gap:2 }}>
+                    {[1,2,3,4,5].map(v => (
+                      <span key={v} style={{ fontSize:26, color: v <= Math.round(avgStars) ? '#FF9500' : '#E0E0E0' }}>★</span>
+                    ))}
+                  </div>
+                  <div style={{ fontSize:22, fontWeight:800, color:'#1D1D1F' }}>{avgStars.toFixed(1)}</div>
+                  <div style={{ fontSize:12, color:'var(--text3)', marginTop:2 }}>({reviews.length} تقييم)</div>
+                </div>
+                {comments.length > 0 && (
+                  <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                    {comments.map(r => (
+                      <div key={r.id} style={{ borderTop:'1px solid var(--sep)', paddingTop:10 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
+                          <div style={{ display:'flex', gap:1 }}>
+                            {[1,2,3,4,5].map(v => (
+                              <span key={v} style={{ fontSize:13, color: v <= (r.stars || 0) ? '#FF9500' : '#E0E0E0' }}>★</span>
+                            ))}
+                          </div>
+                          <span style={{ fontSize:11, color:'var(--text4)', marginRight:'auto' }}>{relativeDate(r.created_at)}</span>
+                        </div>
+                        <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.5 }}>{r.comment}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Coupon Card */}
       <div style={{ margin:'0 16px', borderRadius:20, overflow:'hidden', border:'1px solid var(--sep)', boxShadow:'0 4px 20px rgba(0,0,0,0.08)' }}>

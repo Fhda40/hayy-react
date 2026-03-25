@@ -99,19 +99,25 @@ export default function Rating() {
               >⭐</button>
             ))}
           </div>
+          <div style={{ fontSize:12, color:'var(--text4)', marginTop:5 }}>تقييمك يظهر للعملاء الآخرين</div>
         </div>
 
         {/* Comment */}
-        <input
-          type="text"
-          value={comment}
-          onChange={e => setComment(e.target.value)}
-          placeholder="تعليق اختياري..."
-          className="field"
-          style={{ marginBottom:16 }}
-        />
+        <div style={{ marginBottom:16, position:'relative' }}>
+          <textarea
+            rows={3}
+            value={comment}
+            onChange={e => setComment(e.target.value.slice(0, 200))}
+            placeholder="تعليق اختياري..."
+            className="field"
+            style={{ resize:'none', width:'100%', boxSizing:'border-box', fontFamily:"'Tajawal',sans-serif" }}
+          />
+          <div style={{ fontSize:11, color: comment.length >= 190 ? 'var(--red)' : 'var(--text4)', textAlign:'left', marginTop:3 }}>
+            {comment.length}/200
+          </div>
+        </div>
 
-        <button className="btn-main" style={{ margin:0 }} onClick={submit} disabled={loading}>
+        <button className="btn-main" style={{ margin:0 }} onClick={submit} disabled={loading || applied === null}>
           {loading ? '⏳...' : 'إرسال التقييم'}
         </button>
 
