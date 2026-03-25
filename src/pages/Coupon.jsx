@@ -3,14 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { signInAnonymously } from 'firebase/auth';
-
-function haversine(a, b, c, d) {
-  const R = 6371;
-  const x = Math.sin((c - a) * Math.PI / 360) ** 2 +
-    Math.cos(a * Math.PI / 180) * Math.cos(c * Math.PI / 180) *
-    Math.sin((d - b) * Math.PI / 360) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
-}
+import { haversine, relativeDate } from '../utils';
 
 function confettiBurst() {
   const colors = ['#FF3B30','#34C759','#007AFF','#FF9500','#AF52DE','#FFD60A'];
@@ -55,11 +48,18 @@ export default function Coupon() {
   const [reviews, setReviews] = useState([]);
   const timerRef = useRef(null);
   const codeRef = useRef(null);
+  const couponIdRef = useRef(null);
+  const mountedRef = useRef(true);
+  const generatingRef = useRef(false);
 
   useEffect(() => {
+    mountedRef.current = true;
     checkUsedToday();
     fetchReviews();
-    return () => clearInterval(timerRef.current);
+    return () => {
+      mountedRef.current = false;
+      clearInterval(timerRef.current);
+    };
   }, []);
 
   async function fetchReviews() {
@@ -72,19 +72,6 @@ export default function Coupon() {
       const snap = await getDocs(q);
       setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch {}
-  }
-
-  function relativeDate(ts) {
-    if (!ts) return '';
-    const date = ts.toDate ? ts.toDate() : new Date(ts);
-    const diff = Math.floor((Date.now() - date.getTime()) / 1000);
-    if (diff < 60) return 'منذ لحظات';
-    if (diff < 3600) return `منذ ${Math.floor(diff/60)} دقيقة`;
-    if (diff < 86400) return `منذ ${Math.floor(diff/3600)} ساعة`;
-    if (diff < 172800) return 'منذ يوم';
-    if (diff < 604800) return `منذ ${Math.floor(diff/86400)} أيام`;
-    if (diff < 2592000) return `منذ ${Math.floor(diff/604800)} أسابيع`;
-    return `منذ ${Math.floor(diff/2592000)} أشهر`;
   }
 
   async function checkUsedToday() {
@@ -100,9 +87,26 @@ export default function Coupon() {
   }
 
   async function generate() {
-    if (phase === 'active' || phase === 'spinning') return;
+    if (phase === 'active' || phase === 'spinning' || generatingRef.current) return;
+    generatingRef.current = true;
+    // Re-check used_today right before generating to prevent race condition
+    try {
+      const uid = localStorage.getItem('h_uid') || 'guest';
+      const today = new Date(); today.setHours(0,0,0,0);
+      const q = query(collection(db,'coupons'), where('user_id','==',uid), where('business_id','==',store.id), where('status','==','used'));
+      const snap = await getDocs(q);
+      if (snap.docs.some(d => { const t = d.data().used_at?.toDate?.(); return t && t >= today; })) {
+        if (mountedRef.current) setPhase('used_today');
+        generatingRef.current = false;
+        return;
+      }
+    } catch {}
+    if (!mountedRef.current) { generatingRef.current = false; return; }
     setPhase('spinning');
-    const code = Math.floor(1000 + Math.random() * 9000).toString();
+    // Cryptographically secure 4-digit code
+    const arr = new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    const code = (1000 + (arr[0] % 9000)).toString();
     codeRef.current = code;
 
     // Slot machine animation
@@ -130,6 +134,7 @@ export default function Coupon() {
       });
     }
 
+    if (!mountedRef.current) { generatingRef.current = false; return; }
     if (navigator.vibrate) navigator.vibrate([50,30,80]);
     confettiBurst();
     setPhase('active');
@@ -147,29 +152,33 @@ export default function Coupon() {
         expires_at: new Date(Date.now() + 180000),
         status: 'pending',
       });
-      setCouponId(ref.id);
+      couponIdRef.current = ref.id;
+      if (mountedRef.current) setCouponId(ref.id);
     } catch {}
+    generatingRef.current = false;
   }
 
   function startTimer() {
     clearInterval(timerRef.current);
     let secs = 180;
     timerRef.current = setInterval(async () => {
+      if (!mountedRef.current) { clearInterval(timerRef.current); return; }
       secs--;
       setTimerSecs(secs);
       if (secs <= 0) {
         clearInterval(timerRef.current);
+        if (!mountedRef.current) return;
         // Check if used
-        if (couponId) {
+        if (couponIdRef.current) {
           try {
-            const snap = await getDocs(query(collection(db,'coupons'), where('__name__','==', couponId)));
+            const snap = await getDocs(query(collection(db,'coupons'), where('__name__','==', couponIdRef.current)));
             if (!snap.empty && snap.docs[0].data().status === 'used') {
-              navigate('/rating', { state: { store, couponId } });
+              if (mountedRef.current) navigate('/rating', { state: { store, couponId } });
               return;
             }
           } catch {}
         }
-        setPhase('expired');
+        if (mountedRef.current) setPhase('expired');
       }
     }, 1000);
   }
@@ -199,10 +208,6 @@ export default function Coupon() {
         </div>
         <div style={{ fontSize:20, fontWeight:700 }}>{store.name}</div>
         <div style={{ fontSize:13, color:'var(--text3)', marginTop:2 }}>{store.type}</div>
-        <div style={{ display:'inline-flex', alignItems:'center', gap:6, marginTop:10, padding:'6px 14px', background:'#FFF3E0', borderRadius:20, fontSize:12, color:'#E65100', fontWeight:600 }}>
-          <span>👀</span>
-          <span>{Math.floor(Math.random()*20)+5} شخص يستخدم هذا العرض الآن</span>
-        </div>
       </div>
 
       {/* Photos */}

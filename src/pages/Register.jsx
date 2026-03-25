@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
+import { setDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { db, auth } from '../firebase';
+import { signInAnonymously } from 'firebase/auth';
 import { sha256 } from '../hooks/useSha256';
 import { useAuth } from '../context/AuthContext';
 
@@ -41,12 +42,13 @@ export default function Register() {
     setError('');
     setLoading(true);
     try {
+      const { user } = await signInAnonymously(auth);
       const hashed = await sha256(pass);
-      const ref = await addDoc(collection(db, 'users'), {
+      await setDoc(doc(db, 'users', user.uid), {
         phone, password: hashed, name, email,
         created_at: serverTimestamp(),
       });
-      login({ phone, uid: ref.id, name });
+      login({ phone, uid: user.uid, name });
       navigate('/stores');
     } catch {
       setError('حدث خطأ — حاول مجدداً');

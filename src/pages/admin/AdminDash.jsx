@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, getDocs, setDoc, doc, addDoc, serverTimestamp, query, where } from 'firebase/firestore';
+import { collection, getDocs, setDoc, doc, addDoc, serverTimestamp, query, where, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { toast } from '../../components/Toast';
 
@@ -27,8 +27,17 @@ export default function AdminDash() {
   const [refreshing, setRefreshing] = useState(false);
   const [addForm, setAddForm] = useState({ name:'', type:'', discount:10, icon:'🏪', description:'', area:'', phone:'' });
   const [addSaving, setAddSaving] = useState(false);
+  const [reports, setReports] = useState([]);
+  const [selectedReport, setSelectedReport] = useState(null);
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { loadAll(); loadReports(); }, []);
+
+  async function loadReports() {
+    try {
+      const snap = await getDocs(query(collection(db,'reports'), orderBy('created_at','desc'), limit(10)));
+      setReports(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch {}
+  }
 
   async function loadAll() {
     await Promise.all([loadMerchants(), loadCoupons(), loadComplaints()]);
@@ -131,7 +140,7 @@ export default function AdminDash() {
 
       {/* Tab Bar */}
       <div style={{ display:'flex', background:'#fff', borderBottom:'1px solid var(--sep)', flexShrink:0, overflowX:'auto', scrollbarWidth:'none' }}>
-        {[['overview','📊 عام'],['merchants','🏪 التجار'],['coupons','🎟️ الكوبونات'],['complaints','⚠️ الشكاوى'],['add','➕ إضافة']].map(([id,label]) => (
+        {[['overview','📊 عام'],['merchants','🏪 التجار'],['coupons','🎟️ الكوبونات'],['complaints','⚠️ الشكاوى'],['reports','🤖 تقارير'],['add','➕ إضافة']].map(([id,label]) => (
           <button key={id} onClick={() => setTab(id)}
             style={{ flex:1, minWidth:72, padding:'13px 8px', fontSize:13, fontWeight:600, fontFamily:"'Tajawal',sans-serif", background:'none', border:'none', borderBottom:`2px solid ${tab===id ? '#0A2540' : 'transparent'}`, color: tab===id ? '#0A2540' : 'var(--text3)', cursor:'pointer', whiteSpace:'nowrap' }}>
             {label}
@@ -271,6 +280,73 @@ export default function AdminDash() {
                   </div>
                 ))}
             </div>
+          </div>
+        )}
+
+        {/* ── REPORTS ── */}
+        {tab === 'reports' && (
+          <div style={{ padding:'14px 14px 40px' }}>
+            {selectedReport ? (
+              <div>
+                <button onClick={() => setSelectedReport(null)} style={{ background:'none', border:'none', color:'var(--blue)', fontSize:14, fontFamily:"'Tajawal',sans-serif", cursor:'pointer', marginBottom:12, padding:0 }}>
+                  ‹ العودة للتقارير
+                </button>
+                <div style={{ background:'#fff', borderRadius:16, padding:20, boxShadow:'0 1px 4px rgba(0,0,0,.06)' }}>
+                  <div style={{ fontSize:13, color:'var(--text3)', marginBottom:12 }}>
+                    {selectedReport.created_at?.toDate?.()?.toLocaleDateString('ar-SA', { weekday:'long', year:'numeric', month:'long', day:'numeric' }) || '—'}
+                  </div>
+                  {/* إحصائيات سريعة */}
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:16 }}>
+                    {[
+                      ['التجار النشطون', selectedReport.stats?.merchants?.active ?? '—'],
+                      ['كوبونات مستخدمة', selectedReport.stats?.coupons?.used ?? '—'],
+                      ['معدل الاستخدام', selectedReport.stats?.coupons?.usage_rate ?? '—'],
+                      ['شكاوى مفتوحة', selectedReport.stats?.complaints?.open ?? '—'],
+                    ].map(([l,v]) => (
+                      <div key={l} style={{ background:'var(--bg2)', borderRadius:12, padding:'12px 14px', textAlign:'center' }}>
+                        <div style={{ fontSize:22, fontWeight:900 }}>{v}</div>
+                        <div style={{ fontSize:11, color:'var(--text3)', marginTop:2 }}>{l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* تحليل Claude */}
+                  <div style={{ fontSize:14, lineHeight:1.8, color:'var(--text)', whiteSpace:'pre-wrap', borderTop:'1px solid var(--sep)', paddingTop:14 }}>
+                    {selectedReport.analysis || 'لا يوجد تحليل'}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize:15, fontWeight:700, marginBottom:12 }}>📋 تقارير مدير المشروع</div>
+                <div style={{ fontSize:12, color:'var(--text3)', marginBottom:14, padding:'10px 14px', background:'rgba(21,101,192,.06)', borderRadius:12 }}>
+                  🤖 التقارير تُولَّد تلقائياً كل اثنين الساعة 8 صباحاً بتحليل ذكاء اصطناعي كامل
+                </div>
+                {reports.length === 0 ? (
+                  <div style={{ textAlign:'center', padding:'40px 0', color:'var(--text4)' }}>
+                    <div style={{ fontSize:40, marginBottom:10 }}>🤖</div>
+                    <div style={{ fontSize:14 }}>لا توجد تقارير بعد</div>
+                    <div style={{ fontSize:12, marginTop:6 }}>أول تقرير سيظهر الاثنين القادم</div>
+                  </div>
+                ) : (
+                  <div style={{ background:'#fff', borderRadius:16, overflow:'hidden', boxShadow:'0 1px 4px rgba(0,0,0,.06)' }}>
+                    {reports.map((r, i) => (
+                      <button key={r.id} onClick={() => setSelectedReport(r)}
+                        style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 16px', borderBottom: i<reports.length-1 ? '1px solid var(--sep)' : 'none', background:'none', border:'none', width:'100%', cursor:'pointer', textAlign:'right' }}>
+                        <div>
+                          <div style={{ fontSize:14, fontWeight:700 }}>
+                            تقرير {r.created_at?.toDate?.()?.toLocaleDateString('ar-SA', { month:'long', day:'numeric' }) || '—'}
+                          </div>
+                          <div style={{ fontSize:12, color:'var(--text3)', marginTop:2 }}>
+                            {r.stats?.coupons?.used ?? 0} كوبون مستخدم • {r.stats?.complaints?.open ?? 0} شكوى مفتوحة
+                          </div>
+                        </div>
+                        <span style={{ color:'var(--text4)', fontSize:18 }}>›</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

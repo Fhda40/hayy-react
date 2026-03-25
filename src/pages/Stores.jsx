@@ -5,15 +5,8 @@ import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { initPush } from '../hooks/usePush';
 import StoreSkeleton from '../components/StoreSkeleton';
-
-
-function haversine(a, b, c, d) {
-  const R = 6371;
-  const x = Math.sin((c - a) * Math.PI / 360) ** 2 +
-    Math.cos(a * Math.PI / 180) * Math.cos(c * Math.PI / 180) *
-    Math.sin((d - b) * Math.PI / 360) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
-}
+import { haversine } from '../utils';
+import Assistant from '../components/Assistant';
 
 const FILTERS = [
   { id: 'all', label: '🏪 الكل' },
@@ -33,10 +26,12 @@ export default function Stores() {
   const [userPos, setUserPos] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const userPhone = user?.phone;
   useEffect(() => {
     loadStores();
-    setTimeout(() => initPush(user?.phone), 3000);
-  }, []);
+    const t = setTimeout(() => initPush(userPhone), 3000);
+    return () => clearTimeout(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadStores() {
     const inactivePhones = new Set();
@@ -226,6 +221,9 @@ export default function Stores() {
           <div style={{ fontSize: 12, color: 'var(--text4)' }}>صُنع بـ ❤️ في شرورة — من أهلها لأهلها</div>
         </div>
       </div>
+
+      {/* مساعد حيّ الذكي */}
+      <Assistant stores={stores} />
     </div>
   );
 }

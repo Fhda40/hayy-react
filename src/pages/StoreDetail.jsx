@@ -2,26 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
-
-function haversine(a, b, c, d) {
-  const R = 6371;
-  const x = Math.sin((c - a) * Math.PI / 360) ** 2 +
-    Math.cos(a * Math.PI / 180) * Math.cos(c * Math.PI / 180) *
-    Math.sin((d - b) * Math.PI / 360) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
-}
-
-function relativeDate(ts) {
-  if (!ts) return '';
-  const date = ts.toDate ? ts.toDate() : new Date(ts);
-  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (diff < 60) return 'منذ لحظات';
-  if (diff < 3600) return `منذ ${Math.floor(diff/60)} دقيقة`;
-  if (diff < 86400) return `منذ ${Math.floor(diff/3600)} ساعة`;
-  if (diff < 172800) return 'منذ يوم';
-  if (diff < 604800) return `منذ ${Math.floor(diff/86400)} أيام`;
-  return `منذ ${Math.floor(diff/2592000)} أشهر`;
-}
+import { haversine, relativeDate } from '../utils';
 
 export default function StoreDetail() {
   const navigate = useNavigate();

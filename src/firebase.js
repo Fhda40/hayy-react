@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyAPkinYnCQr8dJPxuYLRFI5ZrC56hR-reg',
@@ -14,5 +15,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db   = getFirestore(app);
+const fns         = getFunctions(app, 'us-central1');
+
+export const callAskAssistant          = httpsCallable(fns, 'askAssistant');
+export const callGenerateDescription   = httpsCallable(fns, 'generateStoreDescription');
+
 export default app;

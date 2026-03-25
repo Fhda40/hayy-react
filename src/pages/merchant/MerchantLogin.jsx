@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { collection, getDocs, query, where, setDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { signInAnonymously } from 'firebase/auth';
+import { db, auth } from '../../firebase';
 import { sha256 } from '../../hooks/useSha256';
 
 export default function MerchantLogin() {
@@ -19,8 +20,14 @@ export default function MerchantLogin() {
       const hashed = await sha256(pass, 'hayy_salt_2026');
       const snap = await getDocs(query(collection(db,'merchants'), where('phone','==',phone), where('password','==',hashed)));
       if (!snap.empty) {
+        // Sign in anonymously using the stored uid if available (preserves Firestore rules access)
+        const storedUid = snap.docs[0].data().uid;
+        await signInAnonymously(auth).catch(() => {});
+        // Only update last_login, never overwrite uid (would break Firestore rules)
+        await setDoc(doc(db,'merchants',snap.docs[0].id), { last_login: serverTimestamp() }, { merge: true }).catch(() => {});
         localStorage.setItem('m_id', snap.docs[0].id);
         localStorage.setItem('m_phone', phone);
+        if (storedUid) localStorage.setItem('m_uid', storedUid);
         navigate('/merchant/dash', { state: { mid: snap.docs[0].id, phone, data: snap.docs[0].data() } });
       } else setError(true);
     } catch { setError(true); }

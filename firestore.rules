@@ -7,39 +7,53 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Merchants — public read active merchants; write requires auth
+    // Merchants — public read; auth required for create (must include uid);
+    //             update allowed for any auth user (admin + merchant self-update)
     match /merchants/{id} {
-      allow read: if resource.data.active != false;
-      allow write: if request.auth != null;
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.keys().hasAll(['uid'])
+                    && request.resource.data.uid == request.auth.uid;
+      allow update: if request.auth != null;
+      allow delete: if false;
     }
 
-    // Businesses — public read active; write requires auth
+    // Businesses — public read; write requires auth (admin adds businesses)
     match /businesses/{id} {
-      allow read: if resource.data.active != false;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // Coupons — authenticated users can create/read their own
+    // Coupons — auth required to read (admin/merchant verification + own coupons)
+    //           create: user_id must match auth uid (prevents creating for others)
+    //           update: own user OR status-only update (merchant verification)
     match /coupons/{id} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.auth.uid == request.resource.data.user_id;
+      allow update: if request.auth != null && (
+                      request.auth.uid == resource.data.user_id
+                      || request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['status', 'used_at', 'merchant_phone'])
+                    );
     }
 
-    // Ratings — anyone authenticated can read; create once per coupon
+    // Ratings — public read; authenticated users can create
     match /ratings/{id} {
       allow read: if true;
       allow create: if request.auth != null;
     }
 
-    // Complaints — authenticated users can create
+    // Complaints — auth required for all (admin reads all; users create own)
     match /complaints/{id} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
     }
 
-    // FCM tokens — user can write their own
+    // FCM tokens — strict: each user can only access their own token
     match /fcm_tokens/{userId} {
-      allow read, write: if request.auth != null;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

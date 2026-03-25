@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { signInAnonymously } from 'firebase/auth';
+import { auth } from '../../firebase';
+import { sha256 } from '../../hooks/useSha256';
 
-const ADMIN_PASS = 'hayy_admin_2026';
+const ADMIN_HASH = import.meta.env.VITE_ADMIN_HASH || '';
 let failedAttempts = 0, lockoutUntil = 0;
 
 export default function AdminLogin() {
@@ -10,15 +13,17 @@ export default function AdminLogin() {
   const [show, setShow] = useState(false);
   const [error, setError] = useState('');
 
-  function login() {
+  async function login() {
     const now = Date.now();
     if (now < lockoutUntil) {
       const mins = Math.ceil((lockoutUntil - now) / 60000);
       setError(`🔒 محظور مؤقتاً — حاول بعد ${mins} دقيقة`);
       return;
     }
-    if (pass === ADMIN_PASS) {
+    const hashed = await sha256(pass, '');
+    if (hashed === ADMIN_HASH) {
       failedAttempts = 0;
+      await signInAnonymously(auth).catch(() => {});
       sessionStorage.setItem('h_admin', '1');
       navigate('/admin/dash');
     } else {
@@ -45,7 +50,7 @@ export default function AdminLogin() {
             type={show ? 'text' : 'password'}
             value={pass}
             onChange={e => setPass(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && login()}
+            onKeyDown={e => e.key === 'Enter' && login().catch(() => {})}
             placeholder="كلمة المرور"
             className="field"
             style={{ paddingLeft:46 }}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { collection, getDocs, query, where, setDoc, addDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { db, callGenerateDescription } from '../../firebase';
 
 const CL = 'https://api.cloudinary.com/v1_1/dtwgl17iy/image/upload';
 const UP = 'hayy_uploads';
@@ -9,8 +9,13 @@ const EMOJIS = ['☕','🍽️','💊','🛒','✂️','🍕','🧴','📱','�
 const TYPES = ['☕ مقاهي ومشروبات','🍽️ مطاعم ومأكولات','💊 صيدليات','🛒 بقالات','✂️ حلاقة وتجميل','👗 ملابس وأزياء','📱 إلكترونيات','🏪 أخرى'];
 
 async function uploadImg(file) {
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  if (!allowed.includes(file.type)) throw new Error('نوع الملف غير مدعوم — يُقبل: jpg, png, webp');
+  if (file.size > 5 * 1024 * 1024) throw new Error('حجم الملف يتجاوز 5MB');
   const fd = new FormData(); fd.append('file', file); fd.append('upload_preset', UP);
-  return (await (await fetch(CL, { method:'POST', body:fd })).json()).secure_url;
+  const res = await (await fetch(CL, { method:'POST', body:fd })).json();
+  if (!res.secure_url) throw new Error('فشل الرفع، حاول مجدداً');
+  return res.secure_url;
 }
 
 export default function MerchantDash() {
@@ -47,7 +52,8 @@ export default function MerchantDash() {
   const [founder, setFounder] = useState(null);
 
   // UI states
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving]         = useState(false);
+  const [genDesc, setGenDesc]       = useState(false);
   const [logoStatus, setLogoStatus] = useState('');
   const [photosStatus, setPhotosStatus] = useState('');
   const [locStatus, setLocStatus] = useState('');
@@ -220,7 +226,24 @@ export default function MerchantDash() {
             <input type="range" min={5} max={50} step={5} value={discount} onChange={e => setDiscount(Number(e.target.value))} style={{ width:'100%', accentColor:'#1D1D1F', marginTop:8 }} />
             <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'var(--text4)', margin:'4px 0 14px' }}><span>5%</span><span>25%</span><span>50%</span></div>
             <label style={{ fontSize:13, fontWeight:600, color:'var(--text3)', marginBottom:8, display:'block' }}>وصف العرض</label>
-            <input type="text" value={desc} onChange={e => setDesc(e.target.value)} className="field" placeholder="مثال: خصم على جميع المشروبات" style={{ marginBottom:12 }} />
+            <div style={{ position:'relative', marginBottom:12 }}>
+              <input type="text" value={desc} onChange={e => setDesc(e.target.value)} className="field" placeholder="مثال: خصم على جميع المشروبات" style={{ marginBottom:0, paddingLeft:110 }} />
+              <button
+                onClick={async () => {
+                  if (!name) { alert('أدخل اسم النشاط أولاً'); return; }
+                  setGenDesc(true);
+                  try {
+                    const { data } = await callGenerateDescription({ storeName: name, storeType: type.replace(/^.\s/,''), discount });
+                    setDesc(data.description);
+                  } catch { alert('تعذر التوليد، حاول مجدداً'); }
+                  setGenDesc(false);
+                }}
+                disabled={genDesc}
+                style={{ position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', background:'linear-gradient(135deg,#0A2540,#1565C0)', color:'#fff', border:'none', borderRadius:8, padding:'5px 10px', fontSize:11, fontWeight:700, fontFamily:"'Tajawal',sans-serif", cursor:'pointer', whiteSpace:'nowrap', opacity: genDesc ? .6 : 1 }}
+              >
+                {genDesc ? '⏳' : '🤖 توليد'}
+              </button>
+            </div>
             <label style={{ fontSize:13, fontWeight:600, color:'var(--text3)', marginBottom:8, display:'block' }}>رقم السجل التجاري</label>
             <input type="text" inputMode="numeric" value={crNumber} onChange={e => setCrNumber(e.target.value.replace(/\D/g,'').slice(0,10))} className="field" placeholder="10 أرقام" maxLength={10} />
             {crNumber && crNumber.length !== 10 && (
@@ -256,7 +279,7 @@ export default function MerchantDash() {
               const f = e.target.files[0]; if (!f) return;
               setLogoStatus('⏳ جاري الرفع...');
               try { setLogoUrl(await uploadImg(f)); setLogoStatus('✅ تم'); }
-              catch { setLogoStatus('❌ فشل'); }
+              catch (err) { setLogoStatus('❌ ' + (err.message || 'فشل الرفع')); }
             }} />
             {logoStatus && <div style={{ fontSize:13, textAlign:'center', color:'var(--text3)', marginBottom:14 }}>{logoStatus}</div>}
 
@@ -280,7 +303,7 @@ export default function MerchantDash() {
                     const f = e.target.files[0]; if (!f) return;
                     setPhotosStatus('⏳ جاري الرفع...');
                     try { const url = await uploadImg(f); setPhotos(p => { const x=[...p]; x[i]=url; return x; }); setPhotosStatus('✅ تم'); }
-                    catch { setPhotosStatus('❌ فشل'); }
+                    catch (err) { setPhotosStatus('❌ ' + (err.message || 'فشل الرفع')); }
                   }} />
                 </div>
               ))}

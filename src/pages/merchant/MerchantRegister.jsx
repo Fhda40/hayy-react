@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { collection, addDoc, getDocs, runTransaction, doc, serverTimestamp } from 'firebase/firestore';
+import { signInAnonymously } from 'firebase/auth';
+import { db, auth } from '../../firebase';
 import { sha256 } from '../../hooks/useSha256';
 
 export default function MerchantRegister() {
@@ -21,19 +22,45 @@ export default function MerchantRegister() {
     setError(''); setLoading(true);
     try {
       const hashed = await sha256(pass, 'hayy_salt_2026');
-      const all = await getDocs(collection(db,'merchants'));
-      const isF = all.size < 30;
-      const fNum = isF ? all.size + 1 : null;
-      const ref = await addDoc(collection(db,'merchants'), {
-        phone, password: hashed, is_founder: isF, founder_number: fNum,
-        founder_since: isF ? new Date().toISOString() : null,
-        free_trial_ends: isF ? new Date(Date.now() + 90 * 864e5).toISOString() : null,
-        created_at: serverTimestamp(),
-      });
+      // Sign in anonymously to get a Firebase UID for Firestore security rules
+      await signInAnonymously(auth).catch(() => {});
+      const uid = auth.currentUser?.uid || null;
+      // Use a transaction to safely assign founder numbers without race conditions
+      const counterRef = doc(db, 'meta', 'merchant_counter');
+      let ref, isF, fNum;
+      try {
+        await runTransaction(db, async (tx) => {
+          const counterSnap = await tx.get(counterRef);
+          const count = counterSnap.exists() ? (counterSnap.data().count || 0) : 0;
+          isF = count < 30;
+          fNum = isF ? count + 1 : null;
+          ref = doc(collection(db, 'merchants'));
+          tx.set(ref, {
+            phone, password: hashed, uid,
+            is_founder: isF, founder_number: fNum,
+            founder_since: isF ? new Date().toISOString() : null,
+            free_trial_ends: isF ? new Date(Date.now() + 90 * 864e5).toISOString() : null,
+            created_at: serverTimestamp(),
+          });
+          tx.set(counterRef, { count: count + 1 }, { merge: true });
+        });
+      } catch {
+        // Fallback if meta collection not accessible
+        const all = await getDocs(collection(db, 'merchants'));
+        isF = all.size < 30;
+        fNum = isF ? all.size + 1 : null;
+        ref = await addDoc(collection(db, 'merchants'), {
+          phone, password: hashed, uid,
+          is_founder: isF, founder_number: fNum,
+          founder_since: isF ? new Date().toISOString() : null,
+          free_trial_ends: isF ? new Date(Date.now() + 90 * 864e5).toISOString() : null,
+          created_at: serverTimestamp(),
+        });
+      }
       localStorage.setItem('m_id', ref.id);
       localStorage.setItem('m_phone', phone);
       navigate('/merchant/dash', { state: { mid: ref.id, phone, data: { is_founder: isF, founder_number: fNum, free_trial_ends: isF ? new Date(Date.now() + 90 * 864e5).toISOString() : null } } });
-    } catch (e) { setError('خطأ: ' + (e.message || 'حاول مجدداً')); }
+    } catch (e) { setError('حدث خطأ، حاول مجدداً'); }
     setLoading(false);
   }
 

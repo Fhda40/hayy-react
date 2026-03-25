@@ -12,9 +12,11 @@ export default function Rating() {
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   async function submit() {
     setLoading(true);
+    setError('');
     const uid = localStorage.getItem('h_uid') || 'guest';
     try {
       await addDoc(collection(db,'ratings'), {
@@ -37,8 +39,11 @@ export default function Rating() {
           status: 'open',
         });
       }
-    } catch {}
-    navigate('/stores');
+      navigate('/stores');
+    } catch {
+      setError('حدث خطأ أثناء الإرسال، حاول مجدداً');
+    }
+    setLoading(false);
   }
 
   return (
@@ -117,6 +122,11 @@ export default function Rating() {
           </div>
         </div>
 
+        {error && (
+          <div style={{ color:'var(--red)', fontSize:13, textAlign:'center', marginBottom:12, padding:10, background:'rgba(255,59,48,0.06)', borderRadius:10 }}>
+            {error}
+          </div>
+        )}
         <button className="btn-main" style={{ margin:0 }} onClick={submit} disabled={loading || applied === null}>
           {loading ? '⏳...' : 'إرسال التقييم'}
         </button>

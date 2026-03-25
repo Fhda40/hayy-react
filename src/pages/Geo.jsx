@@ -1,16 +1,9 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { haversine } from '../utils';
 
 const CITY = { lat: 17.5049999, lng: 47.1025904 };
 const RADIUS = 5;
-
-function haversine(a, b, c, d) {
-  const R = 6371;
-  const x = Math.sin((c - a) * Math.PI / 360) ** 2 +
-    Math.cos(a * Math.PI / 180) * Math.cos(c * Math.PI / 180) *
-    Math.sin((d - b) * Math.PI / 360) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
-}
 
 export default function Geo() {
   const navigate = useNavigate();
@@ -33,11 +26,11 @@ export default function Geo() {
           setState('outside');
         }
       },
-      () => setState('idle')
+      () => setState('denied')
     );
   }
 
-  const content = {
+  const contentMap = {
     idle: {
       icon: '📍', title: 'أنت من شرورة؟',
       sub: '🔒 نتحقق أنك من سكان الحي\nعشان نعطيك خصومات حصرية',
@@ -56,7 +49,13 @@ export default function Geo() {
       sub: `أنت على بعد ${distance.toFixed(0)} كم من شرورة\nحيّ متاح حالياً لسكان شرورة فقط`,
       btn: '🔄 حاول مجدداً',
     },
-  }[state];
+    denied: {
+      icon: '🚫', title: 'تعذّر الوصول للموقع',
+      sub: 'يرجى السماح بالموقع من إعدادات المتصفح ثم حاول مجدداً',
+      btn: '🔄 حاول مجدداً',
+    },
+  };
+  const content = contentMap[state] ?? contentMap.idle;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
