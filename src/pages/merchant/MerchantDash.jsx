@@ -34,6 +34,7 @@ export default function MerchantDash() {
   const [discount, setDiscount] = useState(10);
   const [desc, setDesc] = useState('');
   const [area, setArea] = useState('');
+  const [crNumber, setCrNumber] = useState('');
 
   // Stats
   const [stats, setStats] = useState({ total:0, today:0, week:0, rating:'—' });
@@ -71,6 +72,7 @@ export default function MerchantDash() {
     if (d.photos) setPhotos([...d.photos,'',''].slice(0,3));
     if (d.lat) setLat(d.lat);
     if (d.lng) setLng(d.lng);
+    if (d.cr_number) setCrNumber(d.cr_number);
     if (d.is_founder) {
       const days = d.free_trial_ends ? Math.max(0, Math.ceil((new Date(d.free_trial_ends) - Date.now()) / 864e5)) : 0;
       setFounder({ num: d.founder_number, days });
@@ -127,7 +129,7 @@ export default function MerchantDash() {
   async function save() {
     if (!name) { alert('أدخل اسم النشاط'); return; }
     setSaving(true);
-    const info = { store_name:name, store_type:type.replace(/^.\s/,''), discount, icon:emoji, description:desc, area, logo_url:logoUrl, photos:photos.filter(u=>u), active:true, lat, lng, updated_at:serverTimestamp() };
+    const info = { store_name:name, store_type:type.replace(/^.\s/,''), discount, icon:emoji, description:desc, area, cr_number:crNumber, logo_url:logoUrl, photos:photos.filter(u=>u), active:true, lat, lng, updated_at:serverTimestamp() };
     try {
       await setDoc(doc(db,'merchants',mid), info, { merge:true });
       const bq = await getDocs(query(collection(db,'businesses'), where('phone','==',phone)));
@@ -218,7 +220,12 @@ export default function MerchantDash() {
             <input type="range" min={5} max={50} step={5} value={discount} onChange={e => setDiscount(Number(e.target.value))} style={{ width:'100%', accentColor:'#1D1D1F', marginTop:8 }} />
             <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'var(--text4)', margin:'4px 0 14px' }}><span>5%</span><span>25%</span><span>50%</span></div>
             <label style={{ fontSize:13, fontWeight:600, color:'var(--text3)', marginBottom:8, display:'block' }}>وصف العرض</label>
-            <input type="text" value={desc} onChange={e => setDesc(e.target.value)} className="field" placeholder="مثال: خصم على جميع المشروبات" />
+            <input type="text" value={desc} onChange={e => setDesc(e.target.value)} className="field" placeholder="مثال: خصم على جميع المشروبات" style={{ marginBottom:12 }} />
+            <label style={{ fontSize:13, fontWeight:600, color:'var(--text3)', marginBottom:8, display:'block' }}>رقم السجل التجاري</label>
+            <input type="text" inputMode="numeric" value={crNumber} onChange={e => setCrNumber(e.target.value.replace(/\D/g,'').slice(0,10))} className="field" placeholder="10 أرقام" maxLength={10} />
+            {crNumber && crNumber.length !== 10 && (
+              <div style={{ fontSize:12, color:'var(--red)', marginTop:4 }}>السجل التجاري يجب أن يكون 10 أرقام</div>
+            )}
           </div>
 
           {/* Location card */}
