@@ -259,61 +259,139 @@ export default function Coupon() {
         );
       })()}
 
-      {/* Coupon Card */}
-      <div style={{ margin:'0 16px', borderRadius:20, overflow:'hidden', border:'1px solid var(--sep)', boxShadow:'0 4px 20px rgba(0,0,0,0.08)' }}>
-        {/* Top */}
-        <div style={{ padding:'28px 24px 22px', textAlign:'center', borderBottom:'1px dashed var(--sep)', background:'#fff' }}>
-          <div style={{ fontSize:14, color:'var(--text3)', marginBottom:4 }}>خصم</div>
-          <div style={{ fontSize:72, fontWeight:900, letterSpacing:-2, color:'#1D1D1F', lineHeight:1 }}>{store.discount || 0}</div>
-          <div style={{ fontSize:14, color:'var(--text3)', marginTop:4 }}>% • حصري لأهل شرورة 🏡</div>
+      {/* ── Coupon Card ── */}
+      <div style={{ margin:'0 16px', position:'relative', filter:'drop-shadow(0 8px 28px rgba(0,0,0,0.13))' }}>
+
+        {/* TOP — dark gradient */}
+        <div style={{
+          background:'linear-gradient(135deg,#0A2540 0%,#1565C0 100%)',
+          borderRadius:'22px 22px 0 0',
+          padding:'20px 24px 28px',
+          color:'#fff',
+          position:'relative',
+        }}>
+          {/* Store row */}
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:18 }}>
+            <div style={{ width:50, height:50, borderRadius:14, background:'rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, overflow:'hidden', flexShrink:0 }}>
+              {store.logo_url
+                ? <img src={store.logo_url} style={{ width:'100%', height:'100%', objectFit:'cover' }} alt={store.name} />
+                : store.icon || '🏪'}
+            </div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:17, fontWeight:800, marginBottom:2 }}>{store.name}</div>
+              <div style={{ fontSize:12, opacity:.7 }}>{store.type}</div>
+            </div>
+            <div style={{ textAlign:'center', background:'rgba(255,255,255,0.15)', borderRadius:12, padding:'6px 12px' }}>
+              <div style={{ fontSize:10, opacity:.8, marginBottom:1 }}>خصم</div>
+              <div style={{ fontSize:28, fontWeight:900, lineHeight:1 }}>{store.discount || 0}%</div>
+            </div>
+          </div>
+
+          {/* Hayy badge */}
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+            <div style={{ flex:1, height:1, background:'rgba(255,255,255,0.2)' }} />
+            <span style={{ fontSize:12, opacity:.7 }}>حيّ — شرورة 🏡</span>
+            <div style={{ flex:1, height:1, background:'rgba(255,255,255,0.2)' }} />
+          </div>
+
+          {/* Notch circles */}
+          <div style={{ position:'absolute', bottom:-16, left:-16, width:32, height:32, borderRadius:'50%', background:'var(--bg2)' }} />
+          <div style={{ position:'absolute', bottom:-16, right:-16, width:32, height:32, borderRadius:'50%', background:'var(--bg2)' }} />
         </div>
 
-        {/* Bottom */}
-        <div style={{ padding:'20px 24px', textAlign:'center', background:'#fff' }}>
+        {/* Perforated divider */}
+        <div style={{ background:'#fff', padding:'0 28px', display:'flex', alignItems:'center', height:32 }}>
+          <div style={{ flex:1, borderTop:'2.5px dashed #e0e0e0' }} />
+        </div>
+
+        {/* BOTTOM — white code area */}
+        <div style={{ background:'#fff', borderRadius:'0 0 22px 22px', padding:'4px 24px 24px', textAlign:'center' }}>
           {phase === 'idle' && (
-            <div style={{ padding:'8px 0' }}>
-              <div style={{ fontSize:32, marginBottom:6 }}>🎁</div>
-              <div style={{ fontSize:14, color:'var(--text3)' }}>اضغط لتوليد كودك الحصري</div>
+            <div style={{ padding:'14px 0 8px' }}>
+              <div style={{ fontSize:38, marginBottom:8 }}>🎁</div>
+              <div style={{ fontSize:15, fontWeight:600, color:'var(--text)', marginBottom:4 }}>كودك الحصري في انتظارك</div>
+              <div style={{ fontSize:13, color:'var(--text3)' }}>اضغط الزر أدناه للحصول على خصمك</div>
             </div>
           )}
 
           {(phase === 'spinning' || phase === 'active') && (
-            <div>
-              <div style={{ fontSize:13, color:'var(--text3)', fontWeight:600, marginBottom:4 }}>🎉 كودك جاهز!</div>
-              {/* Digit boxes */}
-              <div style={{ display:'flex', gap:10, justifyContent:'center', margin:'14px 0 8px', direction:'ltr' }}>
+            <div style={{ paddingTop:4 }}>
+              <div style={{ fontSize:12, color:'var(--text3)', fontWeight:600, marginBottom:10, letterSpacing:.5 }}>🎉 كودك الحصري</div>
+              <div style={{ display:'flex', gap:8, justifyContent:'center', marginBottom:12, direction:'ltr' }}>
                 {digits.map((d, i) => (
                   <div key={i} style={{
-                    width:58, height:66, background: locked[i] ? '#1D1D1F' : 'var(--bg2)',
-                    borderRadius:16, display:'flex', alignItems:'center', justifyContent:'center',
-                    fontSize:34, fontWeight:900,
+                    width:56, height:64,
+                    background: locked[i] ? '#0A2540' : 'var(--bg2)',
+                    borderRadius:14,
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    fontSize:32, fontWeight:900,
                     color: locked[i] ? '#fff' : 'var(--text)',
-                    border: `2px solid ${locked[i] ? '#1D1D1F' : phase==='spinning' ? 'rgba(0,122,255,.45)' : 'var(--sep)'}`,
+                    border: `2px solid ${locked[i] ? '#0A2540' : phase==='spinning' ? 'rgba(21,101,192,.4)' : 'var(--sep)'}`,
                     transition: 'background .25s, border-color .2s',
+                    boxShadow: locked[i] ? '0 4px 12px rgba(10,37,64,.25)' : 'none',
                   }}>
                     {d}
                   </div>
                 ))}
               </div>
-              {/* Timer bar */}
-              <div style={{ height:4, background:'var(--sep)', borderRadius:4, overflow:'hidden', margin:'10px 0 6px' }}>
-                <div style={{ height:'100%', borderRadius:4, transition:'width 1s linear, background 1s', width: fillPct + '%', background: timerSecs <= 30 ? 'var(--red)' : 'var(--green)' }} />
+              {/* Timer */}
+              <div style={{ height:5, background:'var(--sep)', borderRadius:4, overflow:'hidden', margin:'0 0 8px' }}>
+                <div style={{ height:'100%', borderRadius:4, transition:'width 1s linear, background 1s', width: fillPct + '%', background: timerSecs <= 30 ? '#FF3B30' : '#34C759' }} />
               </div>
-              <div style={{ fontSize:13, color:'var(--text3)', marginTop:4 }}>
+              <div style={{ fontSize:13, color: timerSecs <= 30 ? '#FF3B30' : 'var(--text3)', fontWeight: timerSecs <= 30 ? 700 : 400 }}>
                 ⏱ صالح لمدة <strong>{m}:{s < 10 ? '0' : ''}{s}</strong>
               </div>
             </div>
           )}
 
           {phase === 'expired' && (
-            <div style={{ padding:10, background:'rgba(255,59,48,0.06)', borderRadius:10, marginTop:8 }}>
-              <span style={{ fontSize:13, color:'var(--red)', fontWeight:600 }}>⏰ انتهت صلاحية الكود</span>
+            <div style={{ padding:'14px 0 8px' }}>
+              <div style={{ fontSize:36, marginBottom:8 }}>⏰</div>
+              <div style={{ fontSize:14, color:'var(--red)', fontWeight:700 }}>انتهت صلاحية الكود</div>
+            </div>
+          )}
+
+          {phase === 'used_today' && (
+            <div style={{ padding:'14px 0 8px' }}>
+              <div style={{ fontSize:36, marginBottom:8 }}>✅</div>
+              <div style={{ fontSize:14, color:'#34C759', fontWeight:700 }}>استخدمت هذا العرض اليوم</div>
             </div>
           )}
         </div>
       </div>
 
       <div style={{ height:14 }} />
+
+      {/* Location button — always visible when store has coordinates */}
+      {store.lat && store.lng && (
+        <div style={{ padding:'0 16px 10px' }}>
+          <a
+            href={`https://maps.google.com/?q=${store.lat},${store.lng}`}
+            target="_blank" rel="noreferrer"
+            style={{
+              display:'flex', alignItems:'center', gap:12,
+              padding:'14px 18px', borderRadius:16,
+              background: phase === 'active' ? 'linear-gradient(135deg,#0A2540,#1565C0)' : '#fff',
+              border: phase === 'active' ? 'none' : '1.5px solid var(--sep)',
+              color: phase === 'active' ? '#fff' : 'var(--text)',
+              textDecoration:'none',
+              boxShadow: phase === 'active' ? '0 5px 18px rgba(10,37,64,.3)' : '0 2px 8px rgba(0,0,0,0.06)',
+              transition: 'all .3s',
+            }}
+          >
+            <span style={{ fontSize:26, flexShrink:0 }}>📍</span>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:15, fontWeight:700 }}>الذهاب إلى المحل</div>
+              {dist != null && (
+                <div style={{ fontSize:12, opacity: phase === 'active' ? .75 : 1, color: phase === 'active' ? '#fff' : 'var(--text3)', marginTop:2 }}>
+                  {dist < 1 ? `${Math.round(dist*1000)} متر منك` : `${dist.toFixed(1)} كم منك`}
+                </div>
+              )}
+            </div>
+            <span style={{ fontSize:20, opacity:.6 }}>←</span>
+          </a>
+        </div>
+      )}
 
       {/* Main Button */}
       <button
@@ -328,31 +406,6 @@ export default function Coupon() {
         {phase === 'expired' && '🔄 توليد كود جديد'}
         {phase === 'used_today' && '✅ استخدمت هذا العرض اليوم'}
       </button>
-
-      {/* Location button */}
-      {phase === 'active' && store.lat && store.lng && (
-        <div style={{ padding:'8px 16px 6px' }}>
-          <a
-            href={`https://maps.google.com/?q=${store.lat},${store.lng}`}
-            target="_blank" rel="noreferrer"
-            style={{
-              display:'flex', alignItems:'center', justifyContent:'center', gap:10,
-              padding:'15px 20px', borderRadius:16,
-              background:'linear-gradient(135deg,#0A2540,#1565C0)',
-              color:'#fff', textDecoration:'none', boxShadow:'0 5px 18px rgba(10,37,64,.3)',
-            }}
-          >
-            <span style={{ fontSize:24 }}>📍</span>
-            <div>
-              <div style={{ fontSize:16, fontWeight:700 }}>الذهاب إلى المحل الآن</div>
-              {dist && <div style={{ fontSize:12, opacity:.75, marginTop:1 }}>
-                {dist < 1 ? `على بعد ${Math.round(dist*1000)} متر منك` : `على بعد ${dist.toFixed(1)} كم منك`}
-              </div>}
-            </div>
-            <span style={{ fontSize:20, opacity:.7, marginRight:'auto' }}>←</span>
-          </a>
-        </div>
-      )}
 
       <div style={{ textAlign:'center', padding:'4px 0 8px', fontSize:12, color:'var(--text4)' }}>
         مرة واحدة يومياً لكل محل
