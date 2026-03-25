@@ -1,6 +1,6 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Anthropic = require('@anthropic-ai/sdk');
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -10,9 +10,9 @@ const messaging = admin.messaging();
 // مساعد - إنشاء client واحد مشترك (lazy)
 // ─────────────────────────────────────────────────────────────────
 function getAI() {
-  const key = process.env.GEMINI_API_KEY || functions.config().gemini?.key;
-  if (!key) throw new functions.https.HttpsError('failed-precondition', 'GEMINI_API_KEY غير مضبوط');
-  return new GoogleGenerativeAI(key);
+  const key = process.env.ANTHROPIC_API_KEY || functions.config().anthropic?.key;
+  if (!key) throw new functions.https.HttpsError('failed-precondition', 'ANTHROPIC_API_KEY غير مضبوط');
+  return new Anthropic.default({ apiKey: key });
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -69,13 +69,13 @@ exports.askAssistant = functions.https.onCall(async (data) => {
   const { message, stores = [], history = [] } = data;
   if (!message) throw new functions.https.HttpsError('invalid-argument', 'message مطلوب');
 
-  const genAI = getAI();
+  const ai = getAI();
 
   const storeList = stores
     .map(s => `• ${s.name} (${s.type}) — خصم ${s.discount || 0}%${s.area ? ` — ${s.area}` : ''}`)
     .join('\n');
 
-  const systemInstruction = `أنت مساعد ذكي لتطبيق "حيّ" في شرورة، منصة خصومات حصرية لأهل الحي.
+  const system = `أنت مساعد ذكي لتطبيق "حيّ" في شرورة، منصة خصومات حصرية لأهل الحي.
 
 المحلات المتاحة الآن:
 ${storeList || 'لا توجد بيانات'}
@@ -87,21 +87,19 @@ ${storeList || 'لا توجد بيانات'}
 - إذا سأل عن محل غير موجود، اعتذر بلطف واقترح بديلاً
 - ردودك بين جملة وثلاث جمل كحد أقصى`;
 
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    systemInstruction,
+  const messages = [
+    ...history.slice(-6).map(m => ({ role: m.role, content: m.content })),
+    { role: 'user', content: message },
+  ];
+
+  const response = await ai.messages.create({
+    model: 'claude-haiku-4-5',
+    max_tokens: 400,
+    system,
+    messages,
   });
 
-  // بناء تاريخ المحادثة (بدون الرسالة الأخيرة)
-  const chatHistory = history.slice(-6, -1).map(m => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
-  }));
-
-  const chat = model.startChat({ history: chatHistory });
-  const result = await chat.sendMessage(message);
-
-  return { reply: result.response.text() };
+  return { reply: response.content[0].text };
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -111,20 +109,24 @@ exports.generateStoreDescription = functions.https.onCall(async (data) => {
   const { storeName, storeType, discount } = data;
   if (!storeName) throw new functions.https.HttpsError('invalid-argument', 'storeName مطلوب');
 
-  const genAI = getAI();
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  const ai = getAI();
 
-  const result = await model.generateContent(
-    `اكتب وصفاً تسويقياً جذاباً ومختصراً (جملة واحدة أو جملتين) لنشاط تجاري في شرورة:
+  const response = await ai.messages.create({
+    model: 'claude-haiku-4-5',
+    max_tokens: 200,
+    messages: [{
+      role: 'user',
+      content: `اكتب وصفاً تسويقياً جذاباً ومختصراً (جملة واحدة أو جملتين) لنشاط تجاري في شرورة:
 الاسم: ${storeName}
 النوع: ${storeType || 'نشاط تجاري'}
 الخصم: ${discount || 10}%
 
 الوصف يجب أن: يكون بالعربية، يذكر الخصم، يناسب أهل شرورة، وجذاب للعملاء.
-أعطِ فقط النص، بدون مقدمات.`
-  );
+أعطِ فقط النص، بدون مقدمات.`,
+    }],
+  });
 
-  return { description: result.response.text().trim() };
+  return { description: response.content[0].text.trim() };
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -134,10 +136,9 @@ exports.weeklyProjectReport = functions.pubsub
   .schedule('every monday 08:00')
   .timeZone('Asia/Riyadh')
   .onRun(async () => {
-    const genAI = getAI();
+    const ai = getAI();
     const week = new Date(Date.now() - 7 * 86400000);
 
-    // جمع البيانات من Firestore
     const [merchantsSnap, couponsSnap, complaintsSnap, ratingsSnap] = await Promise.all([
       db.collection('merchants').get(),
       db.collection('coupons').get(),
@@ -150,7 +151,6 @@ exports.weeklyProjectReport = functions.pubsub
     const complaints = complaintsSnap.docs.map(d => d.data());
     const ratings    = ratingsSnap.docs.map(d => d.data());
 
-    // حساب الإحصائيات
     const weekCoupons    = coupons.filter(c => c.created_at?.toDate?.() >= week);
     const usedCoupons    = weekCoupons.filter(c => c.status === 'used');
     const expiredCoupons = weekCoupons.filter(c => c.status === 'expired');
@@ -183,9 +183,12 @@ exports.weeklyProjectReport = functions.pubsub
       low_rated_stores: lowRatedStores,
     };
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
-    const result = await model.generateContent(
-      `أنت مدير مشروع محترف لتطبيق "حيّ"، منصة خصومات لسكان شرورة.
+    const response = await ai.messages.create({
+      model: 'claude-opus-4-6',
+      max_tokens: 1200,
+      messages: [{
+        role: 'user',
+        content: `أنت مدير مشروع محترف لتطبيق "حيّ"، منصة خصومات لسكان شرورة.
 حلّل هذه الإحصائيات الأسبوعية وأعطِ تقريراً احترافياً موجزاً بالعربية:
 
 ${JSON.stringify(stats, null, 2)}
@@ -196,12 +199,12 @@ ${JSON.stringify(stats, null, 2)}
 **3. نقاط تحتاج اهتماماً** — مشاكل أو مخاوف واضحة
 **4. توصيات الأسبوع القادم** — 3 إجراءات محددة وقابلة للتنفيذ
 
-الأسلوب: احترافي، مباشر، قابل للتنفيذ.`
-    );
+الأسلوب: احترافي، مباشر، قابل للتنفيذ.`,
+      }],
+    });
 
-    const analysis = result.response.text();
+    const analysis = response.content.find(b => b.type === 'text')?.text || '';
 
-    // حفظ التقرير
     await db.collection('reports').add({
       type: 'weekly',
       stats,
@@ -211,7 +214,6 @@ ${JSON.stringify(stats, null, 2)}
       read: false,
     });
 
-    // إشعار الأدمن
     try {
       const adminTokens = await db.collection('fcm_tokens').where('role', '==', 'admin').limit(1).get();
       if (!adminTokens.empty) {
