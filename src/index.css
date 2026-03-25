@@ -1,0 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
+
+:root {
+  --bg: #fff;
+  --bg2: #F5F5F7;
+  --text: #1D1D1F;
+  --text2: #3A3A3C;
+  --text3: #636366;
+  --text4: #AEAEB2;
+  --sep: rgba(60, 60, 67, 0.12);
+  --red: #FF3B30;
+  --green: #34C759;
+  --blue: #007AFF;
+  --navy: #0A2540;
+  --shadow: 0 1px 3px rgba(0,0,0,0.07);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  font-family: 'Tajawal', sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  direction: rtl;
+}
+
+/* Buttons */
+.btn-main {
+  display: block;
+  width: 100%;
+  padding: 17px;
+  background: #1D1D1F;
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 700;
+  font-family: 'Tajawal', sans-serif;
+  cursor: pointer;
+}
+.btn-main:active { opacity: 0.85; }
+.btn-main:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Fields */
+.field {
+  background: var(--bg2);
+  border-radius: 14px;
+  border: none;
+  padding: 15px 16px;
+  font-size: 16px;
+  font-family: 'Tajawal', sans-serif;
+  color: var(--text);
+  width: 100%;
+  outline: none;
+  direction: rtl;
+}
+
+/* Nav button */
+.nav-btn {
+  background: var(--bg2);
+  border: none;
+  border-radius: 20px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Tajawal', sans-serif;
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.fade-in {
+  animation: fadeIn 0.25s ease;
+}
