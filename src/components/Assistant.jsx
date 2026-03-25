@@ -28,8 +28,8 @@ export default function Assistant({ stores = [] }) {
         history: userHistory.slice(-6),
       });
       setHistory(h => [...h, { role: 'assistant', content: data.reply }]);
-    } catch {
-      setHistory(h => [...h, { role: 'assistant', content: 'عذراً، حدث خطأ. حاول مرة ثانية.' }]);
+    } catch (e) {
+      setHistory(h => [...h, { role: 'assistant', content: 'خطأ: ' + (e?.code || e?.message || String(e)) }]);
     }
     setLoading(false);
   }
