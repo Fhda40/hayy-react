@@ -22,7 +22,7 @@ export default function MerchantLogin() {
       if (!snap.empty) {
         // Sign in anonymously using the stored uid if available (preserves Firestore rules access)
         const storedUid = snap.docs[0].data().uid;
-        await signInAnonymously(auth).catch(() => {});
+        await signInAnonymously(auth);
         // Only update last_login, never overwrite uid (would break Firestore rules)
         await setDoc(doc(db,'merchants',snap.docs[0].id), { last_login: serverTimestamp() }, { merge: true }).catch(() => {});
         localStorage.setItem('m_id', snap.docs[0].id);
