@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
+import { initPush } from '../hooks/usePush';
+import StoreSkeleton from '../components/StoreSkeleton';
 
 const STATIC = [
   { id: 'ooto',    icon: '☕', name: 'OOTO Coffee',     type: 'مقاهي ومشروبات', discount: 35, photos: [], description: '' },
@@ -31,6 +33,7 @@ export default function Stores() {
   const { user, logout } = useAuth();
   const [stores, setStores] = useState([]);
   const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
   const [popularity, setPopularity] = useState({});
   const [ratings, setRatings] = useState({});
   const [userPos, setUserPos] = useState(null);
@@ -38,6 +41,7 @@ export default function Stores() {
 
   useEffect(() => {
     loadStores();
+    setTimeout(() => initPush(user?.phone), 3000);
   }, []);
 
   async function loadStores() {
@@ -166,15 +170,24 @@ export default function Stores() {
         </div>
       </div>
 
+      {/* Search */}
+      <div style={{ padding:'0 16px 10px' }}>
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="🔍 ابحث عن محل..."
+          className="field"
+          style={{ margin:0 }}
+        />
+      </div>
+
       {/* Stores List */}
       <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text4)' }}>
-            <div style={{ fontSize: 28 }}>⏳</div>
-            <div style={{ marginTop: 8 }}>جاري التحميل...</div>
-          </div>
+          <StoreSkeleton />
         ) : (
-          sorted().map(s => {
+          sorted().filter(s => !search || s.name?.includes(search) || s.type?.includes(search)).map(s => {
             const avg = ratings[s.id];
             const dist = userPos && s.lat && s.lng
               ? haversine(userPos.lat, userPos.lng, s.lat, s.lng).toFixed(1) + ' كم'

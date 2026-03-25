@@ -193,9 +193,13 @@ export default function AdminDash() {
                         {m.logo_url ? <img src={m.logo_url} style={{ width:'100%', height:'100%', objectFit:'cover' }} alt="" /> : m.icon || '🏪'}
                       </div>
                       <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:15, fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{m.store_name || 'بدون اسم'}</div>
+                        <div style={{ fontSize:15, fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                          {!m.cr_number && <span style={{ fontSize:10, background:'rgba(255,149,0,0.15)', color:'#8a5000', borderRadius:6, padding:'1px 6px', marginRight:4 }}>غير موثّق</span>}
+                          {m.store_name || 'بدون اسم'}
+                        </div>
                         <div style={{ fontSize:12, color:'var(--text3)', marginTop:1 }}>{m.phone || '—'}</div>
                         <div style={{ fontSize:12, color:'var(--text4)', marginTop:1 }}>{m.store_type || ''} {m.discount ? '• '+m.discount+'%' : ''}</div>
+                        {m.cr_number && <div style={{ fontSize:11, color:'var(--text4)', marginTop:1 }}>🪪 س.ت: {m.cr_number}</div>}
                       </div>
                       {m.is_founder && <span style={{ fontSize:10, background:'#0A2540', color:'#fff', borderRadius:8, padding:'2px 8px', flexShrink:0 }}>🎖️ مؤسس</span>}
                       <button onClick={() => toggleMerchant(m)}
