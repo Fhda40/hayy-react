@@ -6,12 +6,6 @@ import { useAuth } from '../context/AuthContext';
 import { initPush } from '../hooks/usePush';
 import StoreSkeleton from '../components/StoreSkeleton';
 
-const STATIC = [
-  { id: 'ooto',    icon: '☕', name: 'OOTO Coffee',     type: 'مقاهي ومشروبات', discount: 35, photos: [], description: '' },
-  { id: 'nahdi',   icon: '💊', name: 'صيدلية النهدي',  type: 'صيدليات',          discount: 20, photos: [], description: '' },
-  { id: 'barber',  icon: '✂️', name: 'حلاق الطايف',    type: 'حلاقة وتجميل',    discount: 15, photos: [], description: '' },
-  { id: 'kabsati', icon: '🍚', name: 'مطعم كبساتي',    type: 'مطاعم ومأكولات',  discount: 10, photos: [], description: '' },
-];
 
 function haversine(a, b, c, d) {
   const R = 6371;
@@ -45,37 +39,23 @@ export default function Stores() {
   }, []);
 
   async function loadStores() {
-    const inactiveNames = new Set(), inactivePhones = new Set();
-    const statics = STATIC.map(s => ({ ...s }));
+    const inactivePhones = new Set();
+    const all = [];
 
     try {
       const ms = await getDocs(collection(db, 'merchants'));
       ms.forEach(m => {
         const d = m.data();
-        if (d.active === false) {
-          if (d.store_name) inactiveNames.add(d.store_name);
-          if (d.phone) inactivePhones.add(d.phone);
-          return;
-        }
-        const match = statics.find(s => s.name === d.store_name || s.phone === d.phone);
-        if (match) {
-          if (d.photos?.length) match.photos = d.photos;
-          if (d.logo_url) match.logo_url = d.logo_url;
-          if (d.is_founder) match.is_founder = true;
-          if (d.lat) match.lat = d.lat;
-          if (d.lng) match.lng = d.lng;
-        }
+        if (d.active === false && d.phone) inactivePhones.add(d.phone);
       });
     } catch {}
-
-    const all = statics.filter(s => !inactiveNames.has(s.name));
 
     try {
       const s = await getDocs(collection(db, 'businesses'));
       s.forEach(d => {
         const data = d.data();
         if (data.active === false) return;
-        if (inactivePhones.has(data.phone) || inactiveNames.has(data.name)) return;
+        if (inactivePhones.has(data.phone)) return;
         all.push({ id: d.id, ...data });
       });
     } catch {}
