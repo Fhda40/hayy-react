@@ -1,18 +1,28 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 admin.initializeApp();
 const db = admin.firestore();
 const messaging = admin.messaging();
 
 // ─────────────────────────────────────────────────────────────────
-// مساعد - إنشاء client واحد مشترك (lazy)
+// Claude client — للتقرير الأسبوعي فقط
 // ─────────────────────────────────────────────────────────────────
 function getAI() {
   const key = process.env.ANTHROPIC_API_KEY || functions.config().anthropic?.key;
   if (!key) throw new functions.https.HttpsError('failed-precondition', 'ANTHROPIC_API_KEY غير مضبوط');
   return new Anthropic.default({ apiKey: key });
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Gemini client — للمساعد وتوليد الوصف
+// ─────────────────────────────────────────────────────────────────
+function getGemini() {
+  const key = process.env.GEMINI_API_KEY || functions.config().gemini?.key;
+  if (!key) throw new functions.https.HttpsError('failed-precondition', 'GEMINI_API_KEY غير مضبوط');
+  return new GoogleGenerativeAI(key);
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -63,19 +73,17 @@ exports.notifyMerchantOnCouponUsed = functions.firestore
   });
 
 // ─────────────────────────────────────────────────────────────────
-// 2. مساعد حيّ للعملاء
+// 2. مساعد حيّ للعملاء — Gemini
 // ─────────────────────────────────────────────────────────────────
 exports.askAssistant = functions.https.onCall(async (data) => {
   const { message, stores = [], history = [] } = data;
   if (!message) throw new functions.https.HttpsError('invalid-argument', 'message مطلوب');
 
-  const ai = getAI();
-
   const storeList = stores
     .map(s => `• ${s.name} (${s.type}) — خصم ${s.discount || 0}%${s.area ? ` — ${s.area}` : ''}`)
     .join('\n');
 
-  const system = `أنت مساعد ذكي لتطبيق "حيّ" في شرورة، منصة خصومات حصرية لأهل الحي.
+  const systemInstruction = `أنت مساعد ذكي لتطبيق "حيّ" في شرورة، منصة خصومات حصرية لأهل الحي.
 
 المحلات المتاحة الآن:
 ${storeList || 'لا توجد بيانات'}
@@ -87,46 +95,39 @@ ${storeList || 'لا توجد بيانات'}
 - إذا سأل عن محل غير موجود، اعتذر بلطف واقترح بديلاً
 - ردودك بين جملة وثلاث جمل كحد أقصى`;
 
-  const messages = [
-    ...history.slice(-6).map(m => ({ role: m.role, content: m.content })),
-    { role: 'user', content: message },
-  ];
+  const genAI = getGemini();
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash', systemInstruction });
 
-  const response = await ai.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 400,
-    system,
-    messages,
-  });
+  const geminiHistory = history.slice(-6).map(m => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: m.content }],
+  }));
 
-  return { reply: response.content[0].text };
+  const chat = model.startChat({ history: geminiHistory });
+  const result = await chat.sendMessage(message);
+
+  return { reply: result.response.text() };
 });
 
 // ─────────────────────────────────────────────────────────────────
-// 3. توليد وصف تسويقي للتاجر
+// 3. توليد وصف تسويقي للتاجر — Gemini
 // ─────────────────────────────────────────────────────────────────
 exports.generateStoreDescription = functions.https.onCall(async (data) => {
   const { storeName, storeType, discount } = data;
   if (!storeName) throw new functions.https.HttpsError('invalid-argument', 'storeName مطلوب');
 
-  const ai = getAI();
+  const genAI = getGemini();
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   try {
-    const response = await ai.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 200,
-      messages: [{
-        role: 'user',
-        content: `اكتب وصفاً تسويقياً جذاباً ومختصراً (جملة واحدة أو جملتين) لنشاط تجاري في شرورة:
+    const result = await model.generateContent(`اكتب وصفاً تسويقياً جذاباً ومختصراً (جملة واحدة أو جملتين) لنشاط تجاري في شرورة:
 الاسم: ${storeName}
 النوع: ${storeType || 'نشاط تجاري'}
 الخصم: ${discount || 10}%
 
 الوصف يجب أن: يكون بالعربية، يذكر الخصم، يناسب أهل شرورة، وجذاب للعملاء.
-أعطِ فقط النص، بدون مقدمات.`,
-      }],
-    });
-    return { description: response.content[0]?.text?.trim() || '' };
+أعطِ فقط النص، بدون مقدمات.`);
+    return { description: result.response.text().trim() };
   } catch (err) {
     functions.logger.error('generateStoreDescription error:', err);
     throw new functions.https.HttpsError('internal', 'تعذر توليد الوصف، حاول مجدداً');
