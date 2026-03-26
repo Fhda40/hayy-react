@@ -139,6 +139,7 @@ export default function MerchantDash() {
     setSaving(true);
     const info = { store_name:name, store_type:type.replace(/^.\s/,''), discount, icon:emoji, description:desc, area, cr_number:crNumber, logo_url:logoUrl, photos:photos.filter(u=>u), active:true, lat, lng, updated_at:serverTimestamp() };
     try {
+      await signInAnonymously(auth);
       await setDoc(doc(db,'merchants',mid), info, { merge:true });
       const bq = await getDocs(query(collection(db,'businesses'), where('phone','==',phone)));
       const biz = { name, type:type.replace(/^.\s/,''), discount, icon:emoji, description:desc, area, phone, logo_url:logoUrl, photos:photos.filter(u=>u), active:true, lat, lng, updated_at:serverTimestamp() };

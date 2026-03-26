@@ -78,11 +78,11 @@ export default function MerchantRegister() {
         </div>
         <div style={{ background:'var(--bg2)', borderRadius:14, overflow:'hidden', marginBottom:12 }}>
           <div style={{ position:'relative', borderBottom:'1px solid var(--sep)' }}>
-            <input type={showP ? 'text' : 'password'} value={pass} onChange={e => setPass(e.target.value)} placeholder="كلمة المرور (6+)" className="field" style={{ borderRadius:0, paddingLeft:44 }} />
+            <input type={showP ? 'text' : 'password'} value={pass} onChange={e => setPass(e.target.value)} placeholder="كلمة المرور (6+)" autoComplete="new-password" className="field" style={{ borderRadius:0, paddingLeft:44 }} />
             <button onClick={() => setShowP(v=>!v)} style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', fontSize:20, cursor:'pointer' }}>{showP?'🙈':'👁️'}</button>
           </div>
           <div style={{ position:'relative' }}>
-            <input type={showC ? 'text' : 'password'} value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="تأكيد كلمة المرور" className="field" style={{ borderRadius:0, paddingLeft:44 }} />
+            <input type={showC ? 'text' : 'password'} value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="تأكيد كلمة المرور" autoComplete="new-password" className="field" style={{ borderRadius:0, paddingLeft:44 }} />
             <button onClick={() => setShowC(v=>!v)} style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', fontSize:20, cursor:'pointer' }}>{showC?'🙈':'👁️'}</button>
           </div>
         </div>

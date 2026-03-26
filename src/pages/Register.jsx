@@ -80,6 +80,7 @@ export default function Register() {
               value={pass}
               onChange={e => setPass(e.target.value)}
               placeholder="كلمة المرور (6 أحرف+)"
+              autoComplete="new-password"
               className="field"
               style={{ borderRadius: 0, paddingLeft: 44 }}
             />
@@ -94,6 +95,7 @@ export default function Register() {
               value={confirm}
               onChange={e => setConfirm(e.target.value)}
               placeholder="تأكيد كلمة المرور"
+              autoComplete="new-password"
               className="field"
               style={{ borderRadius: 0, paddingLeft: 44 }}
             />
