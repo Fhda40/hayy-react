@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { initPush } from '../hooks/usePush';
 import StoreSkeleton from '../components/StoreSkeleton';
 import { haversine } from '../utils';
-import Assistant from '../components/Assistant';
+
 
 const FILTERS = [
   { id: 'all', label: '🏪 الكل' },
@@ -222,8 +222,8 @@ export default function Stores() {
         </div>
       </div>
 
-      {/* مساعد حيّ الذكي */}
-      <Assistant stores={stores} />
+      {/* مساعد حيّ الذكي — معطّل مؤقتاً */}
+      {/* <Assistant stores={stores} /> */}
     </div>
   );
 }
