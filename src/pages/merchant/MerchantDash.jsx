@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { collection, getDocs, query, where, setDoc, addDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { db, callGenerateDescription } from '../../firebase';
+import { db, auth, callGenerateDescription } from '../../firebase';
+import { signInAnonymously } from 'firebase/auth';
 
 const CL = 'https://api.cloudinary.com/v1_1/dtwgl17iy/image/upload';
 const UP = 'hayy_uploads';
@@ -59,6 +60,7 @@ export default function MerchantDash() {
   const [locStatus, setLocStatus] = useState('');
 
   useEffect(() => {
+    signInAnonymously(auth).catch(() => {});
     if (initData) loadDash(initData);
     else if (mid && phone) {
       getDocs(query(collection(db,'merchants'), where('phone','==',phone)))
