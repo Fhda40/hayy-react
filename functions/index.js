@@ -96,17 +96,29 @@ ${storeList || 'لا توجد بيانات'}
 - ردودك بين جملة وثلاث جمل كحد أقصى`;
 
   const genAI = getGemini();
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash', systemInstruction });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-  const geminiHistory = history.slice(-6).map(m => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }],
-  }));
+  // بناء المحادثة: system + history + رسالة المستخدم الحالية
+  // نستبعد آخر عنصر من history (هو نفس message الحالي)
+  const prev = history.slice(0, -1).filter(m => m.role === 'user' || m.role === 'assistant');
 
-  const chat = model.startChat({ history: geminiHistory });
-  const result = await chat.sendMessage(message);
+  const contents = [
+    { role: 'user', parts: [{ text: systemInstruction + '\n\nابدأ المحادثة.' }] },
+    { role: 'model', parts: [{ text: 'حاضر، أنا مساعد حيّ وجاهز للمساعدة.' }] },
+    ...prev.map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    })),
+    { role: 'user', parts: [{ text: message }] },
+  ];
 
-  return { reply: result.response.text() };
+  try {
+    const result = await model.generateContent({ contents });
+    return { reply: result.response.text() };
+  } catch (err) {
+    functions.logger.error('askAssistant Gemini error:', err?.message || err);
+    throw new functions.https.HttpsError('internal', err?.message || 'خطأ في المساعد');
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -117,7 +129,7 @@ exports.generateStoreDescription = functions.https.onCall(async (data) => {
   if (!storeName) throw new functions.https.HttpsError('invalid-argument', 'storeName مطلوب');
 
   const genAI = getGemini();
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
   try {
     const result = await model.generateContent(`اكتب وصفاً تسويقياً جذاباً ومختصراً (جملة واحدة أو جملتين) لنشاط تجاري في شرورة:
