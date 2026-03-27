@@ -222,8 +222,7 @@ export default function Stores() {
         </div>
       </div>
 
-      {/* مساعد حيّ الذكي — معطّل مؤقتاً */}
-      {/* <Assistant stores={stores} /> */}
+      <Assistant stores={stores} />
     </div>
   );
 }

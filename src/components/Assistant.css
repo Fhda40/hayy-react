@@ -1,0 +1,168 @@
+/* hayy-react/src/components/Assistant.css */
+
+.assistant-fab {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+  left: 20px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0A2540, #1565C0);
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  z-index: 1000;
+  box-shadow: 0 4px 16px rgba(10, 37, 64, .4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition: transform 0.2s ease-in-out;
+}
+
+.assistant-fab:hover {
+  transform: scale(1.05);
+}
+
+.assistant-popup {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 82px);
+  left: 12px;
+  width: min(340px, calc(100vw - 24px));
+  height: 420px;
+  background: rgba(255, 255, 255, 0.9); /* Glassmorphism background */
+  border-radius: 20px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  backdrop-filter: blur(10px); /* Glassmorphism effect */
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.assistant-header {
+  background: linear-gradient(135deg, #0A2540, #1565C0);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+}
+
+.assistant-header-icon {
+  font-size: 22px;
+}
+
+.assistant-header-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.assistant-header-subtitle {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 11px;
+}
+
+.assistant-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.assistant-message-user {
+  align-self: flex-end;
+  background: #0A2540;
+  color: #fff;
+  border-radius: 14px 14px 4px 14px;
+}
+
+.assistant-message-assistant {
+  align-self: flex-start;
+  background: var(--bg2);
+  color: var(--text);
+  border-radius: 14px 14px 14px 4px;
+}
+
+.assistant-message-bubble {
+  max-width: 85%;
+  padding: 9px 13px;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.assistant-loading {
+  align-self: flex-start;
+  background: var(--bg2);
+  border-radius: 14px 14px 14px 4px;
+  padding: 9px 13px;
+  font-size: 13px;
+  color: var(--text3);
+}
+
+.assistant-input-area {
+  padding: 10px 12px;
+  border-top: 1px solid var(--sep);
+  display: flex;
+  gap: 8px;
+}
+
+.assistant-input-field {
+  flex: 1;
+  border: 1.5px solid var(--sep);
+  border-radius: 12px;
+  padding: 9px 13px;
+  font-size: 13px;
+  font-family: 'Tajawal', sans-serif;
+  outline: none;
+  background: var(--bg2);
+}
+
+.assistant-send-button {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: #0A2540;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease-in-out;
+}
+
+.assistant-send-button:disabled {
+  background: var(--sep);
+  cursor: not-allowed;
+}
+
+.assistant-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--sep);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(5px);
+}
+
+.assistant-quick-action-button {
+  background: #e0e0e0;
+  border: none;
+  border-radius: 15px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.assistant-quick-action-button:hover {
+  background: #d0d0d0;
+}
