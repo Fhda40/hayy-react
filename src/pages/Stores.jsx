@@ -5,6 +5,7 @@ import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { initPush } from '../hooks/usePush';
 import StoreSkeleton from '../components/StoreSkeleton';
+import Assistant from '../components/Assistant';
 import { haversine } from '../utils';
 
 
